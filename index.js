@@ -53,26 +53,54 @@ const readNormalScFile = (buffer) => {
       break;
     }
 
-    // switch (blockType) {
-    //   case 0x12:
-    //     const spriteId = buffer.readUInt16LE();
-    //     const numberOfRegions = buffer.readUInt16LE();
-    //     const totalNumberOfPoints = buffer.readUInt16LE();
+    switch (blockType) {
+      case 0x12:
+        const spriteId = buffer.readUInt16LE();
+        const numberOfRegions = buffer.readUInt16LE();
+        const totalNumberOfPoints = buffer.readUInt16LE();
 
-    //     for (let i = 0; i < numberOfRegions; i++) {
+        let innerBlockSize;
+        while (innerBlockSize !== 0) {
+          const blockHeader = buffer.readUInt8(); // always 0x16=22??
+          innerBlockSize = buffer.readUInt32LE();
 
-    //     }
-    // }
+          if (innerBlockSize === 0) {
+            break;
+          }
 
-    const block = buffer.readBuffer(blockSize);
-    // console.log(
-    //   `${i} Block type: ${blockType.toString(16)}. Size: ${blockSize}. Data: ${[...block].slice(0, 20)}`
-    // );
-    console.log(
-      `${i} Block type: ${blockType.toString(
-        16
-      )}. Size: ${blockSize}. Data: ${block.toString("hex")}`
-    );
+          const spritesheetId = buffer.readUInt8();
+          const numberOfPoints = buffer.readUInt8();
+
+          for (let j = 0; j < numberOfPoints; j++) {
+            const x = buffer.readInt32LE();
+            const y = buffer.readInt32LE();
+            if (i === 1) {
+              console.log(`Coordinates: (${x}, ${y})`)
+            }
+          }
+
+          // Polygon
+          for (let j = 0; j < numberOfPoints; j++) {
+            const x = buffer.readUInt16LE();
+            const y = buffer.readUInt16LE();
+            if (i === 1) {
+              // todo multiple by width and height of spritesheet
+              console.log(`Polygon: (${x / 0xffff}, ${y / 0xffff})`);
+            }
+          }
+        }
+        break;
+      default:
+        const block = buffer.readBuffer(blockSize);
+        // console.log(
+        //   `${i} Block type: ${blockType.toString(16)}. Size: ${blockSize}. Data: ${[...block].slice(0, 20)}`
+        // );
+        // console.log(
+        //   `${i} Block type: ${blockType.toString(
+        //     16
+        //   )}. Size: ${blockSize}. Data: ${block.toString("hex")}`
+        // );
+    }
     i++;
   }
   console.log("done with blocks. total: " + i);
@@ -91,9 +119,12 @@ const readPixel = (buffer, pixelFormat) => {
     // RGB565
     case 0x04:
       const value = buffer.readUInt16BE();
-      return (value >> 11) << 27 + ((value >> 5) & 0x1f) << 19 + value << 11 + 0xff;
+      return (
+        (((value >> 11) << (27 + ((value >> 5) & 0x1f))) << (19 + value)) <<
+        (11 + 0xff)
+      );
     default:
-      throw 'Unsupported pixel format';
+      throw "Unsupported pixel format";
   }
 };
 
@@ -129,7 +160,7 @@ const readTexScFile = (buffer) => {
     image.write("test" + currentImage + ".png", (err) => {
       if (err) throw err;
     });
-    
+
     currentImage++;
   }
 };
@@ -139,15 +170,15 @@ const readScFile = async (scFileName) => {
   const decompressedScFile = SmartBuffer.fromBuffer(await decompress(buffer));
 
   if (!checkValidity(buffer, decompressedScFile)) {
-    console.log('File is corrupted');
+    console.log("File is corrupted");
   }
-  
+
   if (scFileName.indexOf("_tex") < 0) {
     readNormalScFile(decompressedScFile);
   } else {
     readTexScFile(decompressedScFile);
   }
-}
+};
 
 const main = async () => {
   const scFiles = fs.readdirSync("sc");
@@ -162,7 +193,7 @@ const main = async () => {
   // const scFile = "characters_tex.sc"; // bad
   // supercell_id sorta works
   // ui_tex no
-  const scFile = "supercell_id_tex.sc";
+  const scFile = "supercell_id.sc";
   // for (const scFile of scFiles) {
   readScFile(scFile);
   //}
