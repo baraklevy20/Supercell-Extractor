@@ -12,7 +12,7 @@ const decompress = async (buffer) => {
 
 const checkValidity = (buffer, decompressedBuffer) => {
   const fileHash = buffer.slice(10, 26).toString("hex");
-  const computedHash = md5(decompressedBuffer);
+  const computedHash = md5(decompressedBuffer.toBuffer());
   return fileHash == computedHash;
 };
 
@@ -134,6 +134,21 @@ const readTexScFile = (buffer) => {
   }
 };
 
+const readScFile = async (scFileName) => {
+  const buffer = fs.readFileSync("sc/" + scFileName);
+  const decompressedScFile = SmartBuffer.fromBuffer(await decompress(buffer));
+
+  if (!checkValidity(buffer, decompressedScFile)) {
+    console.log('File is corrupted');
+  }
+  
+  if (scFileName.indexOf("_tex") < 0) {
+    readNormalScFile(decompressedScFile);
+  } else {
+    readTexScFile(decompressedScFile);
+  }
+}
+
 const main = async () => {
   const scFiles = fs.readdirSync("sc");
   // const scFile = 'events.sc';
@@ -149,33 +164,8 @@ const main = async () => {
   // ui_tex no
   const scFile = "supercell_id_tex.sc";
   // for (const scFile of scFiles) {
-  const buffer = fs.readFileSync("sc/" + scFile);
-  const res = SmartBuffer.fromBuffer(await decompress(buffer));
-
-  if (scFile.indexOf("_tex") < 0) {
-    readNormalScFile(res);
-  } else {
-    readTexScFile(res);
-  }
-  // switch (type) {
-  //   case 2:
-  //     readType2(res);
-  //     exit();
-  //     break;
-  //   case 15:
-  //     readType15(res);
-  //     break;
-  //   case 248:
-  //     readType248(res);
-  //     exit();
-  //     break;
-  // }
-
-  // break;
-  // console.log(checkValidity(buffer, res));
-  // fs.writeFileSync('sc_out/' + scFile, res);
-  // console.log(res.toString('hex'))
-  // }
+  readScFile(scFile);
+  //}
 };
 
 main();
