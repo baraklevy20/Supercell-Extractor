@@ -1,0 +1,5 @@
+node_modules/
+sc/
+sc_out/
+sc3d/
+*.png

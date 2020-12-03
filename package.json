@@ -1,0 +1,19 @@
+{
+  "name": "supercell-viewer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "jimp": "^0.16.1",
+    "js-md5": "^0.7.3",
+    "lzma-native": "^6.0.1",
+    "sharp": "^0.26.3",
+    "smart-buffer": "^4.1.0"
+  }
+}
