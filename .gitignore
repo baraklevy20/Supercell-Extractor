@@ -1,5 +1,6 @@
 node_modules/
 sc/
 sc_out/
+out/
 sc3d/
 *.png
