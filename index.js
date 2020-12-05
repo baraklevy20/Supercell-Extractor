@@ -175,14 +175,12 @@ const readPixel = (buffer, pixelFormat) => {
   }
 };
 
-const getSpritesheets = (buffer) => {
+const getSpritesheets = (scFileName, buffer) => {
   let blockLength;
   const spritesheets = [];
-  fs.rmdirSync('out', { recursive: true });
 
   while (blockLength !== 0) {
-    const blockId = buffer.readUInt8();
-    console.log(blockId);
+    const layoutType = buffer.readUInt8();
     blockLength = buffer.readUInt32LE();
 
     if (blockLength === 0) {
@@ -193,24 +191,31 @@ const getSpritesheets = (buffer) => {
     const width = buffer.readUInt16LE();
     const height = buffer.readUInt16LE();
     const pixels = new Array(width * height);
-    const blockSize = 32;
-    const numberOfBlocksInRow = Math.ceil(width / blockSize);
-    const numberOfBlocksInColumn = Math.ceil(height / blockSize);
 
-    for (let r = 0; r < numberOfBlocksInColumn; r++) {
-      for (let c = 0; c < numberOfBlocksInRow; c++) {
-        const currentBlockStartRow = r * blockSize;
-        const currentBlockStartColumn = c * blockSize;
+    if (layoutType === 0x1c) {
+      const blockSize = 32;
+      const numberOfBlocksInRow = Math.ceil(width / blockSize);
+      const numberOfBlocksInColumn = Math.ceil(height / blockSize);
 
-        for (let i = 0; i < blockSize && currentBlockStartRow + i < height; i++) {
-          for (let j = 0; j < blockSize && currentBlockStartColumn + j < width; j++) {
-            const pixelRow = currentBlockStartRow + i;
-            const pixelColumn = currentBlockStartColumn + j;
-            const pixel = readPixel(buffer, pixelFormat);
+      for (let r = 0; r < numberOfBlocksInColumn; r++) {
+        for (let c = 0; c < numberOfBlocksInRow; c++) {
+          const currentBlockStartRow = r * blockSize;
+          const currentBlockStartColumn = c * blockSize;
 
-            pixels[pixelRow * width + pixelColumn] = pixel;
+          for (let i = 0; i < blockSize && currentBlockStartRow + i < height; i++) {
+            for (let j = 0; j < blockSize && currentBlockStartColumn + j < width; j++) {
+              const pixelRow = currentBlockStartRow + i;
+              const pixelColumn = currentBlockStartColumn + j;
+              const pixel = readPixel(buffer, pixelFormat);
+
+              pixels[pixelRow * width + pixelColumn] = pixel;
+            }
           }
         }
+      }
+    } else if (layoutType === 0x01) {
+      for (let i = 0; i < width * height; i++) {
+        pixels[i] = (readPixel(buffer, pixelFormat));
       }
     }
 
@@ -234,7 +239,7 @@ const getSpritesheets = (buffer) => {
         );
       }
     }
-    image.write(`out/test${spritesheets.length}.png`, (err) => {
+    image.write(`out/${scFileName} - spritesheet${spritesheets.length}.png`, (err) => {
       if (err) throw err;
     });
     break;
@@ -255,31 +260,19 @@ const getScBuffer = async (scFileName) => {
 };
 
 const readScFile = async (scFileName) => {
-  const spritesheets = getSpritesheets(await getScBuffer(`${scFileName}_tex`));
-  // readNormalScFile(await getScBuffer(scFileName), spritesheets);
+  const spritesheets = getSpritesheets(scFileName, await getScBuffer(`${scFileName}_tex`));
+  readNormalScFile(await getScBuffer(scFileName), spritesheets);
 };
 
 const main = async () => {
+  fs.rmdirSync('out', { recursive: true });
   const scFiles = fs.readdirSync('sc');
-  // const scFile = 'events.sc';
-  // const scFile = 'events_tex.sc';
-  // const scFile = 'background_basic.sc';
-  // const scFile = "background_basic_tex.sc";
-  // const scFile = 'background_snowtel.sc';
-  // const scFile = 'background_snowtel_tex.sc';
-  // const scFile = 'background_world_finals.sc';
-  // const scFile = "characters.sc";
-  // const scFile = "characters_tex.sc"; // bad
-  // supercell_id sorta works. also debug
-  // loading throws exception
-  // ui_tex no
-
-  // characters = 1 spritesheet, compressed??
-  // debug/supercell_id = 1 spritesheet, but working.
-  const scFile = 'events';
-  // for (const scFile of scFiles) {
-  readScFile(scFile);
-  // }
+  scFiles.forEach((scFile) => {
+    if (!scFile.endsWith('_tex.sc')) {
+      readScFile(scFile.substring(0, scFile.indexOf('.sc')));
+    }
+  });
+  // readScFile('events');
 };
 
 main();
