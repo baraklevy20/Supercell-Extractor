@@ -9,7 +9,7 @@ const main = async () => {
   //     readScFile(scFile.substring(0, scFile.indexOf('.sc')));
   //   }
   // });
-  readScFile('events');
+  readScFile('debug');
 };
 
 main();

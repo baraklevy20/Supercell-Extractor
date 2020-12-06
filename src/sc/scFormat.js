@@ -87,11 +87,12 @@ const readShape = (buffer, textures) => {
   }
 };
 
-const readMovieClip = (buffer) => {
+const readMovieClip = (buffer, exports) => {
   const exportId = buffer.readUInt16LE();
   console.log(exports[exportId]);
   const frameRate = buffer.readUInt8();
   const countFrames = buffer.readUInt16LE();
+  console.log(`frames: ${countFrames}`);
   const countTriples = buffer.readUInt32LE();
 
   for (let i = 0; i < countTriples; i++) {
@@ -102,9 +103,11 @@ const readMovieClip = (buffer) => {
   const x = buffer.readUInt16LE();
   for (let i = 0; i < x; i++) {
     const num = buffer.readInt16LE();
+    console.log(`xuint16: ${num}`);
   }
   for (let i = 0; i < x; i++) {
     const num = buffer.readUInt8();
+    console.log(`xuint8: ${num}`);
   }
 
   for (let i = 0; i < x; i++) {
@@ -112,18 +115,32 @@ const readMovieClip = (buffer) => {
     console.log(string);
   }
 
-  let v25 = 0xb;
-  while (v25 === 0xb) {
-    v25 = buffer.readUInt8();
-    buffer.readUInt32LE(); // not used
+  let bBlockType;
+  while (bBlockType !== 0) {
+    bBlockType = buffer.readUInt8();
+    const bBlockSize = buffer.readUInt32LE(); // not used
 
-    if (v25 !== 0xb) {
+    if (bBlockSize === 0) {
       break;
     }
 
-    const v26 = buffer.readUInt16LE();
-    const string = utils.readString(buffer);
-    console.log(string);
+    switch (bBlockType) {
+      case 0x0b: {
+        const countTriplesInBBlock = buffer.readUInt16LE();
+        const bBlockName = utils.readString(buffer);
+        console.log(`bBlock type 0x0b: ${[countTriplesInBBlock, bBlockName]}`);
+        break;
+      }
+      case 0x1f: {
+        const v27 = buffer.readInt32LE() * 0.05;
+        const v28 = buffer.readInt32LE() * 0.05;
+        const v29 = buffer.readInt32LE() * 0.05 + v27;
+        const v30 = buffer.readInt32LE() * 0.05 + v28;
+        console.log(`bBlock type 0x1f: ${[v27, v28, v29, v30]}`);
+        break;
+      }
+      default:
+    }
   }
 };
 
@@ -140,16 +157,24 @@ const readTransformMatrix = (buffer) => {
 };
 
 const readColorTransform = (buffer) => {
-  const colorTransform = {
-    redMultiplier: buffer.readUInt8(),
-    greenMultiplier: buffer.readUInt8(),
-    blueMultiplier: buffer.readUInt8(),
-    redAddition: buffer.readUInt8(),
-    greenAddition: buffer.readUInt8(),
-    blueAddition: buffer.readUInt8(),
-    scale: buffer.readUInt8() || 100,
-  };
-  console.log(colorTransform);
+  const values = new Array(7);
+  values[4] = buffer.readUInt8();
+  values[5] = buffer.readUInt8();
+  values[6] = buffer.readUInt8();
+  values[3] = buffer.readUInt8();
+  values[0] = buffer.readUInt8();
+  values[1] = buffer.readUInt8();
+  values[2] = buffer.readUInt8();
+  // const colorTransform = {
+  //   redMultiplier: buffer.readUInt8(),
+  //   greenMultiplier: buffer.readUInt8(),
+  //   blueMultiplier: buffer.readUInt8(),
+  //   redAddition: buffer.readUInt8(),
+  //   greenAddition: buffer.readUInt8(),
+  //   blueAddition: buffer.readUInt8(),
+  //   scale: buffer.readUInt8() || 100,
+  // };
+  console.log(values);
 };
 
 const readNormalScFile = (buffer, textures) => {
@@ -196,6 +221,10 @@ const readNormalScFile = (buffer, textures) => {
       break;
     }
 
+    if (i === 62) {
+      console.log('bad');
+    }
+
     switch (blockType) {
       case 0x08:
         readTransformMatrix(buffer);
@@ -205,7 +234,7 @@ const readNormalScFile = (buffer, textures) => {
         break;
       case 0x0c:
         // this is called either a MovieClip or an 'Animation Table'
-        readMovieClip(buffer);
+        readMovieClip(buffer, exports);
         break;
       case 0x12:
         readShape(buffer, textures);
