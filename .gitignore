@@ -1,6 +1,8 @@
 node_modules/
 sc/
 sc_out/
+csv_client/
+csv_logic/
 out/
 sc3d/
 *.png
