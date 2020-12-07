@@ -1,9 +1,10 @@
 const fs = require('fs');
 const { SmartBuffer } = require('smart-buffer');
+const sharp = require('sharp');
 const utils = require('./utils');
 const imageUtils = require('../imageUtils');
 
-const readShape = (buffer, textures) => {
+const readShape = async (buffer, textures) => {
   // This is auto incremented
   const exportId = buffer.readInt16LE();
   console.log(`Shape exportID: ${exportId}`);
@@ -11,6 +12,8 @@ const readShape = (buffer, textures) => {
   const totalNumberOfVertices = buffer.readUInt16LE();
 
   let innerBlockSize;
+  const shapes = [];
+
   while (innerBlockSize !== 0) {
     const blockHeader = buffer.readUInt8(); // either 0x16=22 or 0x00=0
     innerBlockSize = buffer.readUInt32LE();
@@ -38,18 +41,66 @@ const readShape = (buffer, textures) => {
       polygon.push([x, y]);
     }
 
+    const shapeImage = await imageUtils.extractShape(polygon, textures[textureId]);
+
+    if (shapeImage) {
+      shapes.push(shapeImage);
+    }
+
     // imageUtils.extractShape(`out/shape${exportId}.png`, polygon, textures[textureId]);
+  }
+
+  const shape = {
+    type: 'shape',
+    exportId,
+    shapes,
+  };
+  return shape;
+};
+
+const applyOperations = async (path, resource, transformation, colorTransformation) => {
+  if (resource.shapes === undefined) {
+    console.log('wtf');
+  } else {
+    for (let s = 0; s < resource.shapes.length; s++) {
+      const e = resource.shapes[s];
+      const pixels = await e.shape.toBuffer();
+
+      for (let k = 0; k < pixels.length; k += 4) {
+        pixels[4 * k] = Math.floor(pixels[4 * k] * colorTransformation.redMultiplier / 255);
+        pixels[4 * k + 1] = Math.floor(pixels[4 * k + 1] * colorTransformation.greenMultiplier / 255);
+        pixels[4 * k + 2] = Math.floor(pixels[4 * k + 2] * colorTransformation.blueMultiplier / 255);
+        pixels[4 * k + 3] = Math.floor(pixels[4 * k + 3] * colorTransformation.alphaMultiplier / 255);
+        pixels[4 * k] = Math.min(255, pixels[4 * k] + colorTransformation.redAddition);
+        pixels[4 * k + 1] = Math.min(255, pixels[4 * k + 1] + colorTransformation.greenAddition);
+        pixels[4 * k + 2] = Math.min(255, pixels[4 * k + 2] + colorTransformation.blueAddition);
+      }
+
+      const transformed = sharp(pixels, {
+        raw:
+        {
+          channels: 4,
+          width: e.width,
+          height: e.height,
+        },
+      }).affine(transformation.matrix, { background: 'white', odx: transformation.odx, ody: transformation.ody });
+      await imageUtils.saveSharp(`${path} ${s}`, transformed);
+    }
   }
 };
 
-const readMovieClip = (buffer, exports) => {
+const readMovieClip = async (buffer, resources, transformMatrices, colorMatrices) => {
   const exportId = buffer.readUInt16LE();
-  console.log(`MovieClip exportID: ${exportId}`);
+  console.log(`MovieClip exportId: ${exportId}`);
+  if (exportId === 81) {
+    console.log('working');
+  }
   // console.log(exports[exportId]);
   const frameRate = buffer.readUInt8();
   const countFrames = buffer.readUInt16LE();
   console.log(`frames: ${countFrames}`);
   const countTriples = buffer.readUInt32LE();
+  const triples = [];
   // console.log(`count triples: ${countTriples}`);
 
   for (let i = 0; i < countTriples; i++) {
@@ -58,6 +109,7 @@ const readMovieClip = (buffer, exports) => {
     // Third number - index of color transform or default if -1
     const triple = [buffer.readInt16LE(), buffer.readInt16LE(), buffer.readInt16LE()];
     console.log(triple);
+    triples.push(triple);
   }
 
   const numberOfResources = buffer.readUInt16LE();
@@ -72,10 +124,13 @@ const readMovieClip = (buffer, exports) => {
 
   for (let i = 0; i < numberOfResources; i++) {
     const string = utils.readString(buffer);
-    if (string !== null) { console.log(`x string: ${string}`); }
+    console.log(`id: ${resourcesMapping[i]} type: ${resources[resourcesMapping[i]].type} x string: ${string}`);
+    if (string !== null) {
+    }
   }
 
   let frameType;
+  let currentTripleIndex = 0;
   while (frameType !== 0) {
     frameType = buffer.readUInt8();
     const frameSize = buffer.readUInt32LE();
@@ -90,7 +145,19 @@ const readMovieClip = (buffer, exports) => {
         if (frameName !== null) {
           console.log(`frameName: ${frameName}`);
         }
-        console.log(`frame type 0x0b: ${[numberOfTriplesInCurrentFrame, frameName]}`);
+
+        for (let i = 0; i < numberOfTriplesInCurrentFrame; i++) {
+          const currentTriple = triples[currentTripleIndex + i];
+          const resource = resources[resourcesMapping[currentTriple[0]]];
+          const transformation = getTransformMatrix(transformMatrices, currentTriple[1]);
+          const colorTransformation = getColorTransformation(colorMatrices, currentTriple[2]);
+          if (currentTriple[2] != -1) {
+            console.log('fdfs');
+          }
+          await applyOperations(`out/MovieClip${exportId}-triple${i}`, resource, transformation, colorTransformation);
+        }
+
+        currentTripleIndex += numberOfTriplesInCurrentFrame;
         break;
       }
       case 0x1f: {
@@ -104,6 +171,13 @@ const readMovieClip = (buffer, exports) => {
       default:
     }
   }
+
+  const movieClip = {
+    exportId,
+    type: 'movieClip',
+  };
+
+  return movieClip;
 };
 
 const readTextField = (buffer, blockType) => {
@@ -136,6 +210,7 @@ const readTextField = (buffer, blockType) => {
 
   const textField = {
     exportId,
+    type: 'textField',
     text,
     text2,
     v60,
@@ -154,43 +229,71 @@ const readTextField = (buffer, blockType) => {
     c13,
   };
 
+  return textField;
+
   // console.log('TextField: ', textField);
 };
 
-const readTransformMatrix = (buffer) => {
-  // Default matrix seems to be 110000 which only makes sense if the matrix is of size 2x3
-  // and the vertices are (x, y, 1)
-  const matrix = [
-    buffer.readInt32LE() * 0.001, buffer.readInt32LE() * 0.001, buffer.readInt32LE() * 0.001,
-    buffer.readInt32LE() * 0.001, buffer.readInt32LE() * 0.05, buffer.readInt32LE() * 0.05,
-  ];
-  console.log(matrix);
+const readTransformMatrix = (buffer) => ({
+  matrix: [
+    buffer.readInt32LE() / 1024,
+    buffer.readInt32LE() / 1024,
+    buffer.readInt32LE() / 1024,
+    buffer.readInt32LE() / 1024,
+  ],
+  odx: buffer.readInt32LE() * 0.05,
+  ody: buffer.readInt32LE() * 0.05,
+});
+
+const getTransformMatrix = (transformMatrices, index) => {
+  if (index === -1) {
+    // Identity matrix
+    return {
+      matrix: [1, 0, 0, 1],
+      odx: 0,
+      ody: 0,
+    };
+  }
+  return transformMatrices[index];
+};
+const getColorTransformation = (colorMatrices, index) => {
+  if (index === -1) {
+    return {
+      redMultiplier: 0xff,
+      greenMultiplier: 0xff,
+      blueMultiplier: 0xff,
+      alphaMultiplier: 0xff,
+      redAddition: 0,
+      greenAddition: 0,
+      blueAddition: 0,
+    };
+  }
+  return colorMatrices[index];
 };
 
 const readColorTransform = (buffer) => {
-  const values = new Array(7);
-  values[4] = buffer.readUInt8();
-  values[5] = buffer.readUInt8();
-  values[6] = buffer.readUInt8();
-  values[3] = buffer.readUInt8();
-  values[0] = buffer.readUInt8();
-  values[1] = buffer.readUInt8();
-  values[2] = buffer.readUInt8();
-  // const colorTransform = {
-  //   redMultiplier: buffer.readUInt8(),
-  //   greenMultiplier: buffer.readUInt8(),
-  //   blueMultiplier: buffer.readUInt8(),
-  //   redAddition: buffer.readUInt8(),
-  //   greenAddition: buffer.readUInt8(),
-  //   blueAddition: buffer.readUInt8(),
-  //   scale: buffer.readUInt8() || 100,
-  // };
-  // console.log(values);
+  const colorTransform = {
+    redMultiplier: buffer.readUInt8(),
+    greenMultiplier: buffer.readUInt8(),
+    blueMultiplier: buffer.readUInt8(),
+    alphaMultiplier: buffer.readUInt8(),
+    redAddition: buffer.readUInt8(),
+    greenAddition: buffer.readUInt8(),
+    blueAddition: buffer.readUInt8(),
+  };
+  console.log('color transform:', colorTransform);
+  return colorTransform;
 };
 
-const readNormalScFile = (buffer, textures, isOld = false) => {
+const addResource = (resources, resource) => {
+  resources[resource.exportId] = resource;
+};
+
+const readNormalScFile = async (buffer, textures, isOld = false) => {
   // These are used to verify if you're attempting to read too many shapes/animations
-  const resources = [];
+  const resources = {};
+  const transformMatrices = [];
+  const colorMatrices = [];
   const shapesCount = buffer.readUInt16LE();
   const movieClipsCount = buffer.readUInt16LE();
   const texturesCount = buffer.readUInt16LE();
@@ -211,7 +314,7 @@ const readNormalScFile = (buffer, textures, isOld = false) => {
 
   for (let i = 0; i < numberOfExports; i++) {
     const exportName = utils.readString(buffer);
-    console.log(`${exportsIds[i].toString()} - ${exportName}`);
+    // console.log(`${exportsIds[i].toString()} - ${exportName}`);
     exports[exportsIds[i]] = exportName;
   }
 
@@ -238,22 +341,22 @@ const readNormalScFile = (buffer, textures, isOld = false) => {
     switch (blockType) {
       case 0x07:
       case 0x0f:
-        resources.push(readTextField(buffer, blockType));
+        addResource(resources, readTextField(buffer, blockType));
         break;
       case 0x08:
-        readTransformMatrix(buffer);
+        transformMatrices.push(readTransformMatrix(buffer));
         break;
       case 0x09:
-        readColorTransform(buffer);
+        colorMatrices.push(readColorTransform(buffer));
         break;
-      // case 0x0c:
-      //   resources.push(readMovieClip(buffer, exports));
-      //   break;
+      case 0x0c:
+        addResource(resources, await readMovieClip(buffer, resources, transformMatrices, colorMatrices));
+        break;
       case 0x12:
         if (isOld) {
           buffer.readBuffer(blockSize);
         } else {
-          resources.push(readShape(buffer, textures));
+          addResource(resources, await readShape(buffer, textures));
         }
         break;
       default: {
