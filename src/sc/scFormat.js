@@ -5,8 +5,8 @@ const imageUtils = require('../imageUtils');
 
 const readShape = (buffer, textures) => {
   // This is auto incremented
-  const spriteId = buffer.readUInt16LE();
-  // console.log(`spriteID: ${spriteId}`);
+  const exportId = buffer.readInt16LE();
+  console.log(`Shape exportID: ${exportId}`);
   const numberOfSprites = buffer.readUInt16LE();
   const totalNumberOfVertices = buffer.readUInt16LE();
 
@@ -19,7 +19,7 @@ const readShape = (buffer, textures) => {
       break;
     }
 
-    console.log(`Type 12 block header: ${blockHeader}`);
+    // console.log(`Type 12 block header: ${blockHeader}`);
 
     const textureId = buffer.readUInt8();
     const numberOfVertices = buffer.readUInt8();
@@ -28,107 +28,69 @@ const readShape = (buffer, textures) => {
     for (let j = 0; j < numberOfVertices; j++) {
       const x = buffer.readInt32LE();
       const y = buffer.readInt32LE();
-      coordinates.push([x * 0.05, y * 0.05]); // not sure
-      // console.log(`Coordinates: (${x}, ${y})`);
+      coordinates.push([x * 0.05, y * 0.05]);
     }
 
     const polygon = [];
-    // Polygon
     for (let j = 0; j < numberOfVertices; j++) {
-      const x = Math.floor(
-        (buffer.readUInt16LE() / 0xffff)
-                * textures[textureId].width,
-      );
-
-      const y = Math.floor(
-        (buffer.readUInt16LE() / 0xffff)
-                * textures[textureId].height,
-      );
+      const x = Math.floor(buffer.readUInt16LE() / 0xffff * textures[textureId].width);
+      const y = Math.floor(buffer.readUInt16LE() / 0xffff * textures[textureId].height);
       polygon.push([x, y]);
-
-      // if (i === 5) {
-      // console.log(`Polygon: (${x}, ${y})`);
-      // }
     }
 
-    // if (i === 1) {
-    // const image = new Jimp(
-    //   textures[textureId].width,
-    //   textures[textureId].height,
-    // );
-    // let k = 0;
-    // for (let i = 0; i < textures[textureId].height; i++) {
-    //   for (let j = 0; j < textures[textureId].width; j++) {
-    //     image.setPixelColor(
-    //       textures[textureId].pixels[k++],
-    //       j,
-    //       i,
-    //     );
-    //   }
-    // }
-    // const radius = 32;
-    // for (let j = 0; j < numberOfVertices; j++) {
-    //   for (let k = 0; k < radius; k++) {
-    //     image.setPixelColor(0xff0000ff, polygon[j][0] + k, polygon[j][1]);
-    //     image.setPixelColor(0xff0000ff, polygon[j][0] - k, polygon[j][1]);
-    //     image.setPixelColor(0xff0000ff, polygon[j][0], polygon[j][1] + k);
-    //     image.setPixelColor(0xff0000ff, polygon[j][0], polygon[j][1] - k);
-    //     // image.setPixelColor(
-    //     //   0x00ff00ff,
-    //     //   polygon[j][0] + coordinates[j][0] + k,
-    //     //   polygon[j][1] + coordinates[j][1]
-    //     // );
-    //   }
-    // }
-    // image.write(`out/test${spriteId}.png`, (err) => {
-    //   if (err) throw err;
-    // });
-    // }
+    // imageUtils.extractShape(`out/shape${exportId}.png`, polygon, textures[textureId]);
   }
 };
 
 const readMovieClip = (buffer, exports) => {
   const exportId = buffer.readUInt16LE();
-  console.log(exports[exportId]);
+  console.log(`MovieClip exportID: ${exportId}`);
+  // console.log(exports[exportId]);
   const frameRate = buffer.readUInt8();
   const countFrames = buffer.readUInt16LE();
   console.log(`frames: ${countFrames}`);
   const countTriples = buffer.readUInt32LE();
+  // console.log(`count triples: ${countTriples}`);
 
   for (let i = 0; i < countTriples; i++) {
+    // First number - index of resourcesMapping
+    // Second number - index of transform matrix or default matrix if -1
+    // Third number - index of color transform or default if -1
     const triple = [buffer.readInt16LE(), buffer.readInt16LE(), buffer.readInt16LE()];
     console.log(triple);
   }
 
-  const x = buffer.readUInt16LE();
-  for (let i = 0; i < x; i++) {
-    const num = buffer.readInt16LE();
-    console.log(`xuint16: ${num}`);
+  const numberOfResources = buffer.readUInt16LE();
+  const resourcesMapping = [];
+  for (let i = 0; i < numberOfResources; i++) {
+    resourcesMapping.push(buffer.readInt16LE());
   }
-  for (let i = 0; i < x; i++) {
+  for (let i = 0; i < numberOfResources; i++) {
     const num = buffer.readUInt8();
     console.log(`xuint8: ${num}`);
   }
 
-  for (let i = 0; i < x; i++) {
+  for (let i = 0; i < numberOfResources; i++) {
     const string = utils.readString(buffer);
-    console.log(string);
+    if (string !== null) { console.log(`x string: ${string}`); }
   }
 
-  let bBlockType;
-  while (bBlockType !== 0) {
-    bBlockType = buffer.readUInt8();
-    const bBlockSize = buffer.readUInt32LE(); // not used
+  let frameType;
+  while (frameType !== 0) {
+    frameType = buffer.readUInt8();
+    const frameSize = buffer.readUInt32LE();
 
-    if (bBlockSize === 0) {
+    if (frameSize === 0) {
       break;
     }
-
-    switch (bBlockType) {
+    switch (frameType) {
       case 0x0b: {
-        const countTriplesInBBlock = buffer.readUInt16LE();
-        const bBlockName = utils.readString(buffer);
-        console.log(`bBlock type 0x0b: ${[countTriplesInBBlock, bBlockName]}`);
+        const numberOfTriplesInCurrentFrame = buffer.readUInt16LE();
+        const frameName = utils.readString(buffer);
+        if (frameName !== null) {
+          console.log(`frameName: ${frameName}`);
+        }
+        console.log(`frame type 0x0b: ${[numberOfTriplesInCurrentFrame, frameName]}`);
         break;
       }
       case 0x1f: {
@@ -136,7 +98,7 @@ const readMovieClip = (buffer, exports) => {
         const v28 = buffer.readInt32LE() * 0.05;
         const v29 = buffer.readInt32LE() * 0.05 + v27;
         const v30 = buffer.readInt32LE() * 0.05 + v28;
-        console.log(`bBlock type 0x1f: ${[v27, v28, v29, v30]}`);
+        // console.log(`frame type 0x1f: ${[v27, v28, v29, v30]}`);
         break;
       }
       default:
@@ -144,14 +106,63 @@ const readMovieClip = (buffer, exports) => {
   }
 };
 
-const readTextFields = (buffer) => {
-  throw Error('not implemented');
+const readTextField = (buffer, blockType) => {
+  const exportId = buffer.readInt16LE();
+  console.log(`TextField exportID: ${exportId}`);
+  const text = utils.readString(buffer);
+  const v60 = buffer.readInt32LE();
+  const c1 = buffer.readUInt8(); // maybe text modifier
+  const c2 = buffer.readUInt8(); // maybe text modifier
+  const c3 = buffer.readUInt8(); // maybe text modifier
+  const c4 = buffer.readUInt8(); // not sure if used
+  const c5 = buffer.readUInt8();
+  const c6 = buffer.readUInt8();
+  const c7 = buffer.readInt16LE();
+  const c8 = buffer.readInt16LE();
+  const c9 = buffer.readInt16LE();
+  const c10 = buffer.readInt16LE();
+  const c11 = buffer.readUInt8(); // maybe text modifier
+  const text2 = utils.readString(buffer);
+
+  let c12;
+  let c13;
+  if (blockType !== 0x07) {
+    c12 = buffer.readUInt8(); // maybe text modifier
+
+    if (blockType === 0x15) {
+      c13 = buffer.readUInt32LE();
+    }
+  }
+
+  const textField = {
+    exportId,
+    text,
+    text2,
+    v60,
+    c1,
+    c2,
+    c3,
+    c4,
+    c5,
+    c6,
+    c7,
+    c8,
+    c9,
+    c10,
+    c11,
+    c12,
+    c13,
+  };
+
+  // console.log('TextField: ', textField);
 };
 
 const readTransformMatrix = (buffer) => {
+  // Default matrix seems to be 110000 which only makes sense if the matrix is of size 2x3
+  // and the vertices are (x, y, 1)
   const matrix = [
-    [buffer.readInt32LE() * 0.001, buffer.readInt32LE() * 0.001, buffer.readInt32LE() * 0.001],
-    [buffer.readInt32LE() * 0.001, buffer.readInt32LE() * 0.05, buffer.readInt32LE() * 0.05],
+    buffer.readInt32LE() * 0.001, buffer.readInt32LE() * 0.001, buffer.readInt32LE() * 0.001,
+    buffer.readInt32LE() * 0.001, buffer.readInt32LE() * 0.05, buffer.readInt32LE() * 0.05,
   ];
   console.log(matrix);
 };
@@ -174,11 +185,12 @@ const readColorTransform = (buffer) => {
   //   blueAddition: buffer.readUInt8(),
   //   scale: buffer.readUInt8() || 100,
   // };
-  console.log(values);
+  // console.log(values);
 };
 
-const readNormalScFile = (buffer, textures) => {
+const readNormalScFile = (buffer, textures, isOld = false) => {
   // These are used to verify if you're attempting to read too many shapes/animations
+  const resources = [];
   const shapesCount = buffer.readUInt16LE();
   const movieClipsCount = buffer.readUInt16LE();
   const texturesCount = buffer.readUInt16LE();
@@ -199,16 +211,18 @@ const readNormalScFile = (buffer, textures) => {
 
   for (let i = 0; i < numberOfExports; i++) {
     const exportName = utils.readString(buffer);
-    console.log(`${exportsIds[i].toString(16)} - ${exportName}`);
+    console.log(`${exportsIds[i].toString()} - ${exportName}`);
     exports[exportsIds[i]] = exportName;
   }
 
   // some block?
-  const uselessBlock = buffer.readUInt8();
-  if (uselessBlock === 0x17) {
-    buffer.readBuffer(0x13);
-  } else if (uselessBlock === 0x1a) {
-    buffer.readBuffer(0xe);
+  if (!isOld) {
+    const uselessBlock = buffer.readUInt8();
+    if (uselessBlock === 0x17) {
+      buffer.readBuffer(0x13);
+    } else if (uselessBlock === 0x1a) {
+      buffer.readBuffer(0xe);
+    }
   }
 
   let blockSize;
@@ -221,31 +235,34 @@ const readNormalScFile = (buffer, textures) => {
       break;
     }
 
-    if (i === 62) {
-      console.log('bad');
-    }
-
     switch (blockType) {
+      case 0x07:
+      case 0x0f:
+        resources.push(readTextField(buffer, blockType));
+        break;
       case 0x08:
         readTransformMatrix(buffer);
         break;
       case 0x09:
         readColorTransform(buffer);
         break;
-      case 0x0c:
-        // this is called either a MovieClip or an 'Animation Table'
-        readMovieClip(buffer, exports);
-        break;
+      // case 0x0c:
+      //   resources.push(readMovieClip(buffer, exports));
+      //   break;
       case 0x12:
-        readShape(buffer, textures);
+        if (isOld) {
+          buffer.readBuffer(blockSize);
+        } else {
+          resources.push(readShape(buffer, textures));
+        }
         break;
       default: {
         const block = buffer.readBuffer(blockSize);
-        console.log(
-          `${i} Block type: ${blockType.toString(
-            16,
-          )}. Size: ${blockSize}. Data: ${block.toString('hex')}`,
-        );
+        // console.log(
+        //   `${i} Block type: ${blockType.toString(
+        //     16,
+        //   )}. Size: ${blockSize}. Data: ${block.toString('hex')}`,
+        // );
       }
     }
     i++;
@@ -347,9 +364,22 @@ const getScBuffer = async (scFileName) => {
   return decompressedScFile;
 };
 
+const getOldScBuffer = async (scFileName) => {
+  const buffer = fs.readFileSync(`sccoc/${scFileName}.sc`);
+  const decompressedScFile = SmartBuffer.fromBuffer(await utils.oldDecompress(buffer));
+  return decompressedScFile;
+};
+
 const readScFile = async (scFileName) => {
   const textures = readTextures(scFileName, await getScBuffer(`${scFileName}_tex`));
   readNormalScFile(await getScBuffer(scFileName), textures);
 };
 
-module.exports = readScFile;
+const readOldScFile = async (scFileName) => {
+  readNormalScFile(await getOldScBuffer(scFileName), null, true);
+};
+
+module.exports = {
+  readScFile,
+  readOldScFile,
+};

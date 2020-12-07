@@ -7,6 +7,12 @@ const decompress = async (buffer) => {
   return lzma.decompress(data);
 };
 
+const oldDecompress = async (buffer) => {
+  let data = buffer;
+  data = [...data.slice(0, 9), 0, 0, 0, 0, ...data.slice(9)];
+  return lzma.decompress(data);
+};
+
 const checkValidity = (buffer, decompressedBuffer) => {
   const fileHash = buffer.slice(10, 26).toString('hex');
   const computedHash = md5(decompressedBuffer.toBuffer());
@@ -25,6 +31,7 @@ const readString = (buffer) => {
 
 module.exports = {
   decompress,
+  oldDecompress,
   checkValidity,
   readString,
 };

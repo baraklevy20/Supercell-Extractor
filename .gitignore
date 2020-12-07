@@ -1,5 +1,6 @@
 node_modules/
 /sc/
+/sccoc/
 /sc_out/
 /csv_client/
 /csv_logic/
