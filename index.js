@@ -9,11 +9,12 @@ const main = async () => {
   //     readScFile(scFile.substring(0, scFile.indexOf('.sc')));
   //   }
   // });
-  readScFile('events');
+  // readScFile('events');
+  // readScFile('ui');
   // readScFile('loading');
   // readScFile('debug');
   // readOldScFile('overlay');
-  // readScFile('background_basic');
+  readScFile('background_basic');
 };
 
 main();

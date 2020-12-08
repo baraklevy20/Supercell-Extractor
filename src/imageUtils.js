@@ -30,7 +30,7 @@ const saveImageWithPolygon = (path, width, height, pixels, polygon) => {
   saveImage(path, width, height, newPixels);
 };
 
-const extractShape = async (polygon, texture) => {
+const extractShape = async (polygon, rotationAngle, texture) => {
   const polygonString = polygon.reduce((acc, vertex) => `${acc} ${vertex[0]},${vertex[1]}`, '');
   const newPixels = [];
   for (let k = 0; k < texture.pixels.length; k++) {
@@ -76,7 +76,8 @@ const extractShape = async (polygon, texture) => {
       height: texture.height,
     },
   })
-    .extract(region);
+    .extract(region)
+    .rotate(rotationAngle);
   return {
     shape,
     width: region.width,

@@ -8,14 +8,22 @@ const readShape = async (buffer, textures) => {
   // This is auto incremented
   const exportId = buffer.readInt16LE();
   console.log(`Shape exportID: ${exportId}`);
-  const numberOfSprites = buffer.readUInt16LE();
+
+  if (exportId === 19) {
+    console.log('wtf');
+  }
+  const numberOfPolygons = buffer.readUInt16LE();
   const totalNumberOfVertices = buffer.readUInt16LE();
 
   let innerBlockSize;
   const shapes = [];
 
+  const polygons = [];
+  let textureId;
+  let oldTextureId;
   while (innerBlockSize !== 0) {
     const blockHeader = buffer.readUInt8(); // either 0x16=22 or 0x00=0
+    // console.log(blockHeader);
     innerBlockSize = buffer.readUInt32LE();
 
     if (innerBlockSize === 0) {
@@ -24,30 +32,98 @@ const readShape = async (buffer, textures) => {
 
     // console.log(`Type 12 block header: ${blockHeader}`);
 
-    const textureId = buffer.readUInt8();
+    textureId = buffer.readUInt8();
+    console.log(`Header: ${blockHeader} Polygons: ${numberOfPolygons} TextureID: ${textureId} Layout type: ${textures[textureId].layoutType} Pixel Format: ${textures[textureId].pixelFormat}`);
+
+    if (oldTextureId !== undefined && oldTextureId !== textureId) {
+      console.log('DIFFERENT TEXTURE, SAME SHAPE');
+    }
+    oldTextureId = textureId;
     const numberOfVertices = buffer.readUInt8();
     const coordinates = [];
 
     for (let j = 0; j < numberOfVertices; j++) {
-      const x = buffer.readInt32LE();
-      const y = buffer.readInt32LE();
-      coordinates.push([x * 0.05, y * 0.05]);
+      // Layout type: 1 Pixel Format: 0 - 0.05
+      // Layout type: 1 Pixel Format: 6 - 0.05 * 10 / 7
+      // Layout type: 28 Pixel Format: 0 - 0.1
+      // Layout type: 1 Pixel Format: 0 - 0.1
+      // Layout type: 28 Pixel Format: 0 - 0.05
+
+      const x = buffer.readInt32LE() * 0.1; // * 10 / 7 for
+      const y = buffer.readInt32LE() * 0.1;
+      coordinates.push([x, y]);
     }
+
+    // console.log('coordinates: ', coordinates);
 
     const polygon = [];
     for (let j = 0; j < numberOfVertices; j++) {
-      const x = Math.floor(buffer.readUInt16LE() / 0xffff * textures[textureId].width);
-      const y = Math.floor(buffer.readUInt16LE() / 0xffff * textures[textureId].height);
+      const x = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].width);
+      const y = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].height);
       polygon.push([x, y]);
     }
 
-    const shapeImage = await imageUtils.extractShape(polygon, textures[textureId]);
+    const getRegion = (coordinates) => {
+      const xCoordinates = coordinates.map((c) => c[0]);
+      const yCoordinates = coordinates.map((c) => c[1]);
 
-    if (shapeImage) {
-      shapes.push(shapeImage);
+      const minX = Math.min(...xCoordinates);
+      const maxX = Math.max(...xCoordinates);
+      const minY = Math.min(...yCoordinates);
+      const maxY = Math.max(...yCoordinates);
+
+      return {
+        minX, maxX, minY, maxY,
+      };
+    };
+
+    const coordinatesRegion = getRegion(coordinates);
+    const polygonRegion = getRegion(polygon);
+    const normalizedCoordinates = coordinates.map((c) => [
+      c[0] / (coordinatesRegion.maxX - coordinatesRegion.minX),
+      c[1] / (coordinatesRegion.maxY - coordinatesRegion.minY),
+    ]);
+    const normalizedPolygon = polygon.map((c) => [
+      c[0] / (polygonRegion.maxX - polygonRegion.minX),
+      c[1] / (polygonRegion.maxY - polygonRegion.minY),
+    ]);
+
+    const minXIndex = coordinates.findIndex(((c) => c[0] === coordinatesRegion.minX));
+    const maxXIndex = coordinates.findIndex(((c) => c[0] === coordinatesRegion.maxX));
+    const coordinate0 = normalizedCoordinates[minXIndex];
+    const coordinate1 = normalizedCoordinates[maxXIndex];
+    const polygon0 = normalizedPolygon[minXIndex];
+    const polygon1 = normalizedPolygon[maxXIndex];
+    let rotationAngle = 0;
+
+    if (Math.fround(coordinate0[1] - polygon0[0]) === Math.fround(coordinate1[1] - polygon1[0])
+      && Math.fround(coordinate0[0] + polygon0[1]) === Math.fround(coordinate1[0] + polygon1[1])) {
+      rotationAngle = 90;
+      console.log('rotate 90');
+    } else if (Math.fround(coordinate0[1] + polygon0[0]) === Math.fround(coordinate1[1] + polygon1[0])
+      && Math.fround(coordinate0[0] - polygon0[1]) === Math.fround(coordinate1[0] - polygon1[1])) {
+      rotationAngle = 270;
+      console.log('rotate 270');
+    } else if (Math.fround(coordinate0[0] - polygon0[0]) === Math.fround(coordinate1[0] - polygon1[0])
+      && Math.fround(coordinate0[1] + polygon0[1]) === Math.fround(coordinate1[1] + polygon1[1])) {
+      rotationAngle = 180;
+      console.log('rotate 180');
     }
 
-    // imageUtils.extractShape(`out/shape${exportId}.png`, polygon, textures[textureId]);
+    // console.log('polygon: ', polygon);
+
+    if (polygon[0][0] === polygon[1][0] && polygon[0][1] === polygon[1][1]) {
+      console.log('ONE POINT POLYGON');
+    }
+
+    polygons.push(polygon);
+    // if (exportId === 14) {
+    // }
+    const shapeImage = await imageUtils.extractShape(polygon, rotationAngle, textures[textureId]);
+    if (shapeImage) {
+      imageUtils.saveSharp(`out/exportID ${exportId} polygon number ${polygons.length}`, shapeImage.shape);
+      shapes.push(shapeImage);
+    }
   }
 
   const shape = {
@@ -92,7 +168,7 @@ const applyOperations = async (path, resource, transformation, colorTransformati
 const readMovieClip = async (buffer, resources, transformMatrices, colorMatrices) => {
   const exportId = buffer.readUInt16LE();
   console.log(`MovieClip exportId: ${exportId}`);
-  if (exportId === 81) {
+  if (exportId === 21) {
     console.log('working');
   }
   // console.log(exports[exportId]);
@@ -125,8 +201,6 @@ const readMovieClip = async (buffer, resources, transformMatrices, colorMatrices
   for (let i = 0; i < numberOfResources; i++) {
     const string = utils.readString(buffer);
     console.log(`id: ${resourcesMapping[i]} type: ${resources[resourcesMapping[i]].type} x string: ${string}`);
-    if (string !== null) {
-    }
   }
 
   let frameType;
@@ -165,7 +239,7 @@ const readMovieClip = async (buffer, resources, transformMatrices, colorMatrices
         const v28 = buffer.readInt32LE() * 0.05;
         const v29 = buffer.readInt32LE() * 0.05 + v27;
         const v30 = buffer.readInt32LE() * 0.05 + v28;
-        // console.log(`frame type 0x1f: ${[v27, v28, v29, v30]}`);
+        console.log(`frame type 0x1f: ${[v27, v28, v29, v30]}`);
         break;
       }
       default:
@@ -289,7 +363,7 @@ const addResource = (resources, resource) => {
   resources[resource.exportId] = resource;
 };
 
-const readNormalScFile = async (buffer, textures, isOld = false) => {
+const readNormalScFile = async (filename, buffer, textures, isOld = false) => {
   // These are used to verify if you're attempting to read too many shapes/animations
   const resources = {};
   const transformMatrices = [];
@@ -339,19 +413,19 @@ const readNormalScFile = async (buffer, textures, isOld = false) => {
     }
 
     switch (blockType) {
-      case 0x07:
-      case 0x0f:
-        addResource(resources, readTextField(buffer, blockType));
-        break;
-      case 0x08:
-        transformMatrices.push(readTransformMatrix(buffer));
-        break;
-      case 0x09:
-        colorMatrices.push(readColorTransform(buffer));
-        break;
-      case 0x0c:
-        addResource(resources, await readMovieClip(buffer, resources, transformMatrices, colorMatrices));
-        break;
+      // case 0x07:
+      // case 0x0f:
+      //   addResource(resources, readTextField(buffer, blockType));
+      //   break;
+      // case 0x08:
+      //   transformMatrices.push(readTransformMatrix(buffer));
+      //   break;
+      // case 0x09:
+      //   colorMatrices.push(readColorTransform(buffer));
+      //   break;
+      // case 0x0c:
+      //   addResource(resources, await readMovieClip(buffer, resources, transformMatrices, colorMatrices));
+      //   break;
       case 0x12:
         if (isOld) {
           buffer.readBuffer(blockSize);
@@ -370,7 +444,7 @@ const readNormalScFile = async (buffer, textures, isOld = false) => {
     }
     i++;
   }
-  console.log(`done with blocks. total: ${i}`);
+  console.log(`done with blocks. total: ${i}, filename: ${filename}`);
 };
 
 const readPixel = (buffer, pixelFormat) => {
@@ -442,6 +516,8 @@ const readTextures = (scFileName, buffer) => {
     textures.push({
       width,
       height,
+      pixelFormat,
+      layoutType,
       pixels,
     });
 
@@ -475,11 +551,11 @@ const getOldScBuffer = async (scFileName) => {
 
 const readScFile = async (scFileName) => {
   const textures = readTextures(scFileName, await getScBuffer(`${scFileName}_tex`));
-  readNormalScFile(await getScBuffer(scFileName), textures);
+  readNormalScFile(scFileName, await getScBuffer(scFileName), textures);
 };
 
 const readOldScFile = async (scFileName) => {
-  readNormalScFile(await getOldScBuffer(scFileName), null, true);
+  readNormalScFile(scFileName, await getOldScBuffer(scFileName), null, true);
 };
 
 module.exports = {
