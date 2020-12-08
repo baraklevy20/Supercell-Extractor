@@ -10,11 +10,11 @@ const main = async () => {
   //   }
   // });
   // readScFile('events');
+  readScFile('loading');
   // readScFile('ui');
-  // readScFile('loading');
   // readScFile('debug');
   // readOldScFile('overlay');
-  readScFile('background_basic');
+  // readScFile('background_basic');
 };
 
 main();

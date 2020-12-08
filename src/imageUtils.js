@@ -30,7 +30,7 @@ const saveImageWithPolygon = (path, width, height, pixels, polygon) => {
   saveImage(path, width, height, newPixels);
 };
 
-const extractShape = async (polygon, rotationAngle, texture) => {
+const extractShape = async (exportId, polygon, rotationAngle, texture) => {
   const polygonString = polygon.reduce((acc, vertex) => `${acc} ${vertex[0]},${vertex[1]}`, '');
   const newPixels = [];
   for (let k = 0; k < texture.pixels.length; k++) {
@@ -67,7 +67,7 @@ const extractShape = async (polygon, rotationAngle, texture) => {
     return null;
   }
 
-  const shape = sharp(maskedImage, {
+  const extractedShape = await sharp(maskedImage, {
     raw:
     {
       channels: 4,
@@ -76,11 +76,27 @@ const extractShape = async (polygon, rotationAngle, texture) => {
     },
   })
     .extract(region)
-    .rotate(rotationAngle);
+    .toBuffer();
+
+  if (exportId === 3) {
+    console.log('wtf');
+  }
+  const rotatedShape = await sharp(extractedShape, {
+    raw:
+    {
+      channels: 4,
+      width: region.width,
+      height: region.height,
+    },
+  })
+    .rotate(rotationAngle)
+    .raw()
+    .toBuffer();
   return {
-    shape,
-    width: region.width,
-    height: region.height,
+    exportId,
+    pixels: rotatedShape,
+    width: Math.abs(rotationAngle) === 90 ? region.height : region.width,
+    height: Math.abs(rotationAngle) === 90 ? region.width : region.height,
   };
 };
 
