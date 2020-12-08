@@ -49,11 +49,10 @@ const extractShape = async (polygon, rotationAngle, texture) => {
     .composite([{
       input: Buffer.from(
         `<svg width="${texture.width}" height="${texture.height}">
-            <rect width="100%" height="100%" fill="black"/>
-          <polygon fill="white" points="${polygonString}"/>
+        <polygon fill="white" points="${polygonString}"/>
         </svg>`,
       ),
-      blend: 'multiply',
+      blend: 'dest-in',
     }]).toBuffer();
 
   const region = {
