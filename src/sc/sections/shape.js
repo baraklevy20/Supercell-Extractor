@@ -43,8 +43,8 @@ const readShape = (buffer, textures) => {
       // Layout type: 1 Pixel Format: 0 - 0.1
       // Layout type: 28 Pixel Format: 0 - 0.05
 
-      const x = buffer.readInt32LE() * 0.3;
-      const y = buffer.readInt32LE() * 0.3;
+      const x = buffer.readInt32LE();
+      const y = buffer.readInt32LE();
       console.log([x, y]);
       coordinates.push([x, y]);
     }
@@ -152,15 +152,17 @@ const readShape = (buffer, textures) => {
     }
 
     polygons.push(polygon);
+    const size = 0.1;
     shapes.push({
       textureId,
-      coordinates,
-      minX: coordinatesRegion.minX,
-      minY: coordinatesRegion.minY,
-      rotatedCoordinates: isPolygon ? rotatedCoordinates : coordinates,
       polygon,
       isPolygon,
       rotationAngle,
+      coordinates: coordinates.map((c) => [Math.round(c[0] * size), Math.round(c[1] * size)]),
+      scaleWidth: Math.round(((coordinatesRegion.maxX - coordinatesRegion.minX) * size)),
+      scaleHeight: Math.round(((coordinatesRegion.maxY - coordinatesRegion.minY) * size)),
+      minX: coordinatesRegion.minX * size,
+      minY: coordinatesRegion.minY * size,
     });
   }
 

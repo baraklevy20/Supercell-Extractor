@@ -66,9 +66,9 @@ const readNormalScFile = async (filename, buffer, textures, isOld = false) => {
       break;
     }
 
-    if (i === 1) {
-      // break;
-    }
+    // if (i === 1) {
+    //   break;
+    // }
 
     switch (blockType) {
       case 0x07:
@@ -196,31 +196,18 @@ const getShapeRegion = (polygons) => {
   };
 };
 
-const getRotatedShapeRegion = (polygons) => {
-  const allX = [];
-  const allY = [];
-  polygons.forEach((polygon) => {
-    polygon.rotatedCoordinates.forEach((coordinate) => {
-      allX.push(coordinate[0]);
-      allY.push(coordinate[1]);
-    });
-  });
-
-  const minX = Math.min(...allX);
-  const maxX = Math.max(...allX);
-  const minY = Math.min(...allY);
-  const maxY = Math.max(...allY);
-
-  return {
-    minX, maxX, minY, maxY,
-  };
-};
-
 const extractColor = async (exportId, polygonIndex, shape, textures, tx, ty) => {
+  if (polygonIndex === 4) {
+    console.log('what')
+  }
   // todo sometimes polygon[0] = polygon[2] and polygon[1]=polygon[3] wtf
+  const color1Position = shape.polygon[0];
+  const color2Position = shape.polygon[0][0] !== shape.polygon[1][0]
+    || shape.polygon[0][1] !== shape.polygon[1][1] ? shape.polygon[1] : shape.polygon[2];
   const extractedShape = await imageUtils.createShapeWithColor(
     shape.coordinates,
-    textures[shape.textureId].pixels[shape.polygon[0][1] * textures[shape.textureId].width + shape.polygon[0][0]],
+    textures[shape.textureId].pixels[color1Position[1] * textures[shape.textureId].width + color1Position[0]],
+    textures[shape.textureId].pixels[color2Position[1] * textures[shape.textureId].width + color2Position[0]],
     tx,
     ty,
   );
@@ -243,26 +230,20 @@ const extractShapes = async (textures, resources) => {
       const shapeRegion = getShapeRegion(resource.shapes);
       resource.shapes.forEach(async (shape, index) => {
         if (shape.isPolygon) {
-          extractShapePromises.push(imageUtils.extractShape(
+          extractShapePromises.push(imageUtils.extractShapeAndResize(
             exportId,
             index,
-            shape.polygon,
-            shape.rotationAngle,
+            shape,
             textures[shape.textureId],
           ));
         } else {
           extractShapePromises.push(extractColor(exportId, index, shape, textures, shapeRegion.minX, shapeRegion.minY));
         }
       });
-      if (exportId === 3) {
-        console.log('b');
-      }
-      const result = await Promise.all(extractShapePromises);
-      const { rotationAngle } = resource.shapes[0];
 
-      const rotatedShapeRegion = getRotatedShapeRegion(resource.shapes);
-      const shapeWidth = Math.round(shapeRegion.maxX - shapeRegion.minX);
-      const shapeHeight = Math.round(shapeRegion.maxY - shapeRegion.minY);
+      const result = await Promise.all(extractShapePromises);
+      const shapeWidth = Math.round(shapeRegion.maxX - shapeRegion.minX) + 1;
+      const shapeHeight = Math.round(shapeRegion.maxY - shapeRegion.minY) + 1;
 
       // todo remove round, make sure coordinates are integers instead
       const shape = await sharp({
@@ -293,10 +274,8 @@ const extractShapes = async (textures, resources) => {
           height: shapeHeight,
         },
       })
-        // .rotate(rotationAngle)
         .png()
         .toFile(`out/shape${exportId}.png`);
-      // const minX = Math.min()
       console.log('res');
     }
   }

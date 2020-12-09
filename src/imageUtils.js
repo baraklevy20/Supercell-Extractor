@@ -30,8 +30,8 @@ const saveImageWithPolygon = (path, width, height, pixels, polygon) => {
   saveImage(path, width, height, newPixels);
 };
 
-const extractShape = async (exportId, polygonIndex, polygon, rotationAngle, texture) => {
-  const polygonString = polygon.reduce((acc, vertex) => `${acc} ${vertex[0]},${vertex[1]}`, '');
+const extractShapeAndResize = async (exportId, polygonIndex, shape, texture) => {
+  const polygonString = shape.polygon.reduce((acc, vertex) => `${acc} ${vertex[0]},${vertex[1]}`, '');
   const newPixels = [];
   for (let k = 0; k < texture.pixels.length; k++) {
     const c = texture.pixels[k];
@@ -56,11 +56,11 @@ const extractShape = async (exportId, polygonIndex, polygon, rotationAngle, text
     }]).toBuffer();
 
   const region = {
-    left: Math.min(...polygon.map((p) => p[0])),
-    top: Math.min(...polygon.map((p) => p[1])),
+    left: Math.min(...shape.polygon.map((p) => p[0])),
+    top: Math.min(...shape.polygon.map((p) => p[1])),
   };
-  region.width = Math.max(...polygon.map((p) => p[0])) - region.left;
-  region.height = Math.max(...polygon.map((p) => p[1])) - region.top;
+  region.width = Math.max(...shape.polygon.map((p) => p[0])) - region.left;
+  region.height = Math.max(...shape.polygon.map((p) => p[1])) - region.top;
 
   // todo check if this is needed...
   if (region.width === 0 || region.height === 0) {
@@ -87,15 +87,26 @@ const extractShape = async (exportId, polygonIndex, polygon, rotationAngle, text
     },
   })
     .raw()
-    .rotate(rotationAngle)
+    .rotate(shape.rotationAngle)
     .toBuffer();
 
-  await sharp(extractedShape, {
+  const resizedShape = await sharp(rotatedShape, {
     raw:
     {
       channels: 4,
-      width: region.width,
-      height: region.height,
+      width: Math.abs(shape.rotationAngle) === 90 ? region.height : region.width,
+      height: Math.abs(shape.rotationAngle) === 90 ? region.width : region.height,
+    },
+  })
+    .resize(shape.scaleWidth, shape.scaleHeight)
+    .toBuffer();
+
+  await sharp(resizedShape, {
+    raw:
+    {
+      channels: 4,
+      width: shape.scaleWidth,
+      height: shape.scaleHeight,
     },
   })
     .toFile(`out/exportID ${exportId} polygon number ${polygonIndex}.png`);
@@ -103,15 +114,13 @@ const extractShape = async (exportId, polygonIndex, polygon, rotationAngle, text
   return {
     exportId,
     polygonIndex,
-    pixels: rotatedShape,
-    width: Math.abs(rotationAngle) === 90 ? region.height : region.width,
-    height: Math.abs(rotationAngle) === 90 ? region.width : region.height,
+    pixels: resizedShape,
+    width: shape.scaleWidth,
+    height: shape.scaleHeight,
   };
 };
 
-const createShapeWithColor = async (coordinates, color, tx, ty) => {
-  const x = 1;
-  coordinates = coordinates.map((c) => [c[0] * x, c[1] * x]);
+const createShapeWithColor = async (coordinates, color1, color2, tx, ty) => {
   const coordinatesRegion = {
     left: Math.min(...coordinates.map((p) => p[0])),
     top: Math.min(...coordinates.map((p) => p[1])),
@@ -123,7 +132,11 @@ const createShapeWithColor = async (coordinates, color, tx, ty) => {
   const polygonString = coordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - tx},${vertex[1] - ty}`, '');
 
   const shape = sharp(Buffer.from(`<svg width="${coordinatesRegion.width}" height="${coordinatesRegion.height}">
-        <polygon fill="#${color.toString(16).padStart(8, '0')}" points="${polygonString}"/>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"  stop-color="#${color1.toString(16).padStart(8, '0')}" />
+          <stop offset="100%" stop-color="#${color2.toString(16).padStart(8, '0')}" />
+        </linearGradient>
+        <polygon fill="url(#grad1)" points="${polygonString}"/>
         </svg>`));
   return {
     pixels: await shape.raw().toBuffer(),
@@ -139,7 +152,7 @@ const saveSharp = async (path, sharpImage) => {
 module.exports = {
   saveImage,
   saveImageWithPolygon,
-  extractShape,
+  extractShapeAndResize,
   createShapeWithColor,
   saveSharp,
 };
