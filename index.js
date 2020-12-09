@@ -9,12 +9,15 @@ const main = async () => {
   //     readScFile(scFile.substring(0, scFile.indexOf('.sc')));
   //   }
   // });
+  // readScFile('effects_brawler');
   // readScFile('events');
-  readScFile('loading');
-  // readScFile('ui');
+  // readScFile('characters');
+  // readScFile('supercell_id'); // lots of gradients
+  // readScFile('loading');
+  readScFile('ui');
   // readScFile('debug');
-  // readOldScFile('overlay');
   // readScFile('background_basic');
+  // readOldScFile('overlay');
 };
 
 main();

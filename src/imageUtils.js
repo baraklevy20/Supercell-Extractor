@@ -30,7 +30,7 @@ const saveImageWithPolygon = (path, width, height, pixels, polygon) => {
   saveImage(path, width, height, newPixels);
 };
 
-const extractShape = async (exportId, polygon, rotationAngle, texture) => {
+const extractShape = async (exportId, polygonIndex, polygon, rotationAngle, texture) => {
   const polygonString = polygon.reduce((acc, vertex) => `${acc} ${vertex[0]},${vertex[1]}`, '');
   const newPixels = [];
   for (let k = 0; k < texture.pixels.length; k++) {
@@ -86,14 +86,49 @@ const extractShape = async (exportId, polygon, rotationAngle, texture) => {
       height: region.height,
     },
   })
-    .rotate(rotationAngle)
     .raw()
+    .rotate(rotationAngle)
     .toBuffer();
+
+  await sharp(extractedShape, {
+    raw:
+    {
+      channels: 4,
+      width: region.width,
+      height: region.height,
+    },
+  })
+    .toFile(`out/exportID ${exportId} polygon number ${polygonIndex}.png`);
+
   return {
     exportId,
+    polygonIndex,
     pixels: rotatedShape,
     width: Math.abs(rotationAngle) === 90 ? region.height : region.width,
     height: Math.abs(rotationAngle) === 90 ? region.width : region.height,
+  };
+};
+
+const createShapeWithColor = async (coordinates, color, tx, ty) => {
+  const x = 1;
+  coordinates = coordinates.map((c) => [c[0] * x, c[1] * x]);
+  const coordinatesRegion = {
+    left: Math.min(...coordinates.map((p) => p[0])),
+    top: Math.min(...coordinates.map((p) => p[1])),
+  };
+  coordinatesRegion.width = Math.round(Math.max(...coordinates.map((p) => p[0])) - coordinatesRegion.left);
+  coordinatesRegion.height = Math.round(Math.max(...coordinates.map((p) => p[1])) - coordinatesRegion.top);
+
+  // Move coordinates to origin and generate svg polygon string
+  const polygonString = coordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - tx},${vertex[1] - ty}`, '');
+
+  const shape = sharp(Buffer.from(`<svg width="${coordinatesRegion.width}" height="${coordinatesRegion.height}">
+        <polygon fill="#${color.toString(16).padStart(8, '0')}" points="${polygonString}"/>
+        </svg>`));
+  return {
+    pixels: await shape.raw().toBuffer(),
+    width: coordinatesRegion.width,
+    height: coordinatesRegion.height,
   };
 };
 
@@ -105,5 +140,6 @@ module.exports = {
   saveImage,
   saveImageWithPolygon,
   extractShape,
+  createShapeWithColor,
   saveSharp,
 };

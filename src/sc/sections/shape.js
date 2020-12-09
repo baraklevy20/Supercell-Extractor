@@ -1,12 +1,10 @@
-const imageUtils = require('../../imageUtils');
-
 const readShape = (buffer, textures) => {
   // This is auto incremented
   const exportId = buffer.readInt16LE();
-  console.log(`Shape exportID: ${exportId}`);
+  // console.log(`Shape exportID: ${exportId}`);
 
-  if (exportId === 19) {
-    console.log('wtf');
+  if (exportId === 0) {
+    // console.log('wtf');
   }
   const numberOfPolygons = buffer.readUInt16LE();
   const totalNumberOfVertices = buffer.readUInt16LE();
@@ -29,10 +27,10 @@ const readShape = (buffer, textures) => {
     // console.log(`Type 12 block header: ${blockHeader}`);
 
     textureId = buffer.readUInt8();
-    console.log(`Header: ${blockHeader} Polygons: ${numberOfPolygons} TextureID: ${textureId} Layout type: ${textures[textureId].layoutType} Pixel Format: ${textures[textureId].pixelFormat}`);
+    // console.log(`Header: ${blockHeader} Polygons: ${numberOfPolygons} TextureID: ${textureId} Layout type: ${textures[textureId].layoutType} Pixel Format: ${textures[textureId].pixelFormat}`);
 
     if (oldTextureId !== undefined && oldTextureId !== textureId) {
-      console.log('DIFFERENT TEXTURE, SAME SHAPE');
+      // console.log('DIFFERENT TEXTURE, SAME SHAPE');
     }
     oldTextureId = textureId;
     const numberOfVertices = buffer.readUInt8();
@@ -45,17 +43,24 @@ const readShape = (buffer, textures) => {
       // Layout type: 1 Pixel Format: 0 - 0.1
       // Layout type: 28 Pixel Format: 0 - 0.05
 
-      const x = buffer.readInt32LE() * 0.1; // * 10 / 7 for
-      const y = buffer.readInt32LE() * 0.1;
+      const x = buffer.readInt32LE() * 0.3;
+      const y = buffer.readInt32LE() * 0.3;
+      console.log([x, y]);
       coordinates.push([x, y]);
     }
 
-    // console.log('coordinates: ', coordinates);
+    // console.log(`${polygons.length}coordinates:`, coordinates);
 
     const polygon = [];
     for (let j = 0; j < numberOfVertices; j++) {
       const x = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].width);
       const y = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].height);
+      // let x = buffer.readUInt16LE();
+      // let y = buffer.readUInt16LE();
+      // // console.log(`polygon fake: ${[x * 5 / textures[textureId].width, y * 5 / textures[textureId].height]}`);
+      // console.log(`polygon real: ${[x / 0xffff * textures[textureId].width, y / 0xffff * textures[textureId].height]}`);
+      // x = Math.round(x / 0xffff * textures[textureId].width);
+      // y = Math.round(y / 0xffff * textures[textureId].height);
       polygon.push([x, y]);
     }
 
@@ -86,42 +91,77 @@ const readShape = (buffer, textures) => {
 
     const minXIndex = coordinates.findIndex(((c) => c[0] === coordinatesRegion.minX));
     const maxXIndex = coordinates.findIndex(((c) => c[0] === coordinatesRegion.maxX));
+    const minYIndex = coordinates.findIndex(((c) => c[1] === coordinatesRegion.minY));
+    const maxYIndex = coordinates.findIndex(((c) => c[1] === coordinatesRegion.maxY));
     const coordinate0 = normalizedCoordinates[minXIndex];
     const coordinate1 = normalizedCoordinates[maxXIndex];
+    const coordinate2 = normalizedCoordinates[minYIndex];
+    const coordinate3 = normalizedCoordinates[maxYIndex];
     const polygon0 = normalizedPolygon[minXIndex];
     const polygon1 = normalizedPolygon[maxXIndex];
+    const polygon2 = normalizedPolygon[minYIndex];
+    const polygon3 = normalizedPolygon[maxYIndex];
     let rotationAngle = 0;
 
     if (Math.fround(coordinate0[1] - polygon0[0]) === Math.fround(coordinate1[1] - polygon1[0])
-      && Math.fround(coordinate0[0] + polygon0[1]) === Math.fround(coordinate1[0] + polygon1[1])) {
+      && Math.fround(coordinate0[0] + polygon0[1]) === Math.fround(coordinate1[0] + polygon1[1])
+      && Math.fround(coordinate2[1] - polygon2[0]) === Math.fround(coordinate3[1] - polygon3[0])
+      && Math.fround(coordinate2[0] + polygon2[1]) === Math.fround(coordinate3[0] + polygon3[1])
+    ) {
       rotationAngle = 90;
       console.log('rotate 90');
     } else if (Math.fround(coordinate0[1] + polygon0[0]) === Math.fround(coordinate1[1] + polygon1[0])
-      && Math.fround(coordinate0[0] - polygon0[1]) === Math.fround(coordinate1[0] - polygon1[1])) {
+      && Math.fround(coordinate0[0] - polygon0[1]) === Math.fround(coordinate1[0] - polygon1[1])
+      && Math.fround(coordinate2[1] + polygon2[0]) === Math.fround(coordinate3[1] + polygon3[0])
+      && Math.fround(coordinate2[0] - polygon2[1]) === Math.fround(coordinate3[0] - polygon3[1])
+    ) {
       rotationAngle = -90;
       console.log('rotate -90');
     } else if (Math.fround(coordinate0[0] - polygon0[0]) === Math.fround(coordinate1[0] - polygon1[0])
-      && Math.fround(coordinate0[1] + polygon0[1]) === Math.fround(coordinate1[1] + polygon1[1])) {
+      && Math.fround(coordinate0[1] + polygon0[1]) === Math.fround(coordinate1[1] + polygon1[1])
+      && Math.fround(coordinate2[0] - polygon2[0]) === Math.fround(coordinate3[0] - polygon3[0])
+      && Math.fround(coordinate2[1] + polygon2[1]) === Math.fround(coordinate3[1] + polygon3[1])
+    ) {
       rotationAngle = 180;
       console.log('rotate 180');
     }
 
+    const rotatePoint = (p, angle) => {
+      switch (angle) {
+        case 0: return p;
+        case 90: return [-p[1], p[0]];
+        case -90: return [p[1], -p[0]];
+        case 180: return [-p[0], -p[1]];
+        default:
+          return null;
+      }
+    };
+    const rotatedCoordinates = coordinates.map((c) => rotatePoint(c, rotationAngle));
+    const rotatedCoordinatesRegion = getRegion(rotatedCoordinates);
+    const sx = 1 / (rotatedCoordinatesRegion.maxX - rotatedCoordinatesRegion.minX) * (polygonRegion.maxX - polygonRegion.minX);
+    const sy = 1 / (rotatedCoordinatesRegion.maxY - rotatedCoordinatesRegion.minY) * (polygonRegion.maxY - polygonRegion.minY);
+    // todo scale polygon, not coordinates
+    const normalizedRotatedCoordinates = rotatedCoordinates.map((c) => [Math.ceil(c[0] * sx), Math.ceil(c[1] * sy)]);
+
     // console.log('polygon: ', polygon);
 
-    if (polygon[0][0] === polygon[1][0] && polygon[0][1] === polygon[1][1]) {
-      console.log('ONE POINT POLYGON');
+    // maybe gradient. see supercell_id
+    const isPolygon = polygonRegion.minX !== polygonRegion.maxX && polygonRegion.minY !== polygonRegion.maxY;
+    if (!isPolygon) {
+      console.log('ONE POINT POLYGON', exportId, polygon);
     }
 
     polygons.push(polygon);
-    // const shapeImage = await imageUtils.extractShape(polygon, rotationAngle, textures[textureId]);
-    // if (shapeImage) {
-    // imageUtils.saveSharp(`out/exportID ${exportId} polygon number ${polygons.length}`, shapeImage.shape);
     shapes.push({
       textureId,
+      coordinates,
+      minX: coordinatesRegion.minX,
+      minY: coordinatesRegion.minY,
+      rotatedCoordinates: isPolygon ? rotatedCoordinates : coordinates,
       polygon,
+      isPolygon,
       rotationAngle,
     });
-    // }
   }
 
   const shape = {

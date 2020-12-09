@@ -15,7 +15,7 @@ const addResource = (resources, resource) => {
   resources[resource.exportId] = resource;
 };
 
-const readNormalScFile = (filename, buffer, textures, isOld = false) => {
+const readNormalScFile = async (filename, buffer, textures, isOld = false) => {
   console.log(`starting ${filename}`);
   // These are used to verify if you're attempting to read too many shapes/animations
   const resources = {};
@@ -66,6 +66,10 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
       break;
     }
 
+    if (i === 1) {
+      // break;
+    }
+
     switch (blockType) {
       case 0x07:
       case 0x0f:
@@ -109,11 +113,8 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
     i++;
   }
 
-  // const result = await Promise.all(readSpritePromises);
-  // resources.push(...result);
-
   console.log(`done with blocks. total: ${i}, filename: ${filename}`);
-  // await createMovieClips(transformMatrices, colorMatrices, textures, resources);
+  await createMovieClips(transformMatrices, colorMatrices, textures, resources);
 };
 
 const applyOperations = async (path, resource, transformation, colorTransformation) => {
@@ -175,52 +176,159 @@ const getColorTransformation = (colorMatrices, index) => {
   return colorMatrices[index];
 };
 
+const getShapeRegion = (polygons) => {
+  const allX = [];
+  const allY = [];
+  polygons.forEach((polygon) => {
+    polygon.coordinates.forEach((coordinate) => {
+      allX.push(coordinate[0]);
+      allY.push(coordinate[1]);
+    });
+  });
+
+  const minX = Math.min(...allX);
+  const maxX = Math.max(...allX);
+  const minY = Math.min(...allY);
+  const maxY = Math.max(...allY);
+
+  return {
+    minX, maxX, minY, maxY,
+  };
+};
+
+const getRotatedShapeRegion = (polygons) => {
+  const allX = [];
+  const allY = [];
+  polygons.forEach((polygon) => {
+    polygon.rotatedCoordinates.forEach((coordinate) => {
+      allX.push(coordinate[0]);
+      allY.push(coordinate[1]);
+    });
+  });
+
+  const minX = Math.min(...allX);
+  const maxX = Math.max(...allX);
+  const minY = Math.min(...allY);
+  const maxY = Math.max(...allY);
+
+  return {
+    minX, maxX, minY, maxY,
+  };
+};
+
+const extractColor = async (exportId, polygonIndex, shape, textures, tx, ty) => {
+  // todo sometimes polygon[0] = polygon[2] and polygon[1]=polygon[3] wtf
+  const extractedShape = await imageUtils.createShapeWithColor(
+    shape.coordinates,
+    textures[shape.textureId].pixels[shape.polygon[0][1] * textures[shape.textureId].width + shape.polygon[0][0]],
+    tx,
+    ty,
+  );
+
+  return {
+    exportId,
+    polygonIndex,
+    pixels: extractedShape.pixels,
+    width: extractedShape.width,
+    height: extractedShape.height,
+  };
+};
+
 const extractShapes = async (textures, resources) => {
-  const extractShapePromises = [];
   for (const exportId in resources) {
     const resource = resources[exportId];
 
     if (resource.type === 'shape') {
-      resource.extractedShapes = [];
-      resource.shapes.forEach((shape) => {
-        extractShapePromises.push(imageUtils.extractShape(
-          exportId,
-          shape.polygon,
-          shape.rotationAngle,
-          textures[shape.textureId],
-        ));
+      const extractShapePromises = [];
+      const shapeRegion = getShapeRegion(resource.shapes);
+      resource.shapes.forEach(async (shape, index) => {
+        if (shape.isPolygon) {
+          extractShapePromises.push(imageUtils.extractShape(
+            exportId,
+            index,
+            shape.polygon,
+            shape.rotationAngle,
+            textures[shape.textureId],
+          ));
+        } else {
+          extractShapePromises.push(extractColor(exportId, index, shape, textures, shapeRegion.minX, shapeRegion.minY));
+        }
       });
+      if (exportId === 3) {
+        console.log('b');
+      }
+      const result = await Promise.all(extractShapePromises);
+      const { rotationAngle } = resource.shapes[0];
+
+      const rotatedShapeRegion = getRotatedShapeRegion(resource.shapes);
+      const shapeWidth = Math.round(shapeRegion.maxX - shapeRegion.minX);
+      const shapeHeight = Math.round(shapeRegion.maxY - shapeRegion.minY);
+
+      // todo remove round, make sure coordinates are integers instead
+      const shape = await sharp({
+        create: {
+          width: shapeWidth,
+          height: shapeHeight,
+          channels: 4,
+          background: {
+            r: 0, g: 0, b: 0, alpha: 0,
+          },
+        },
+      })
+        .composite(result.map((r) => ({
+          input: r.pixels,
+          raw: {
+            channels: 4,
+            width: r.width,
+            height: r.height,
+          },
+          left: Math.round(resource.shapes[r.polygonIndex].minX - shapeRegion.minX),
+          top: Math.round(resource.shapes[r.polygonIndex].minY - shapeRegion.minY),
+        })))
+        .toBuffer();
+      await sharp(shape, {
+        raw: {
+          channels: 4,
+          width: shapeWidth,
+          height: shapeHeight,
+        },
+      })
+        // .rotate(rotationAngle)
+        .png()
+        .toFile(`out/shape${exportId}.png`);
+      // const minX = Math.min()
+      console.log('res');
     }
   }
-  const result = await Promise.all(extractShapePromises);
-  result.forEach((extractedShape) => {
-    if (extractedShape) {
-      resources[extractedShape.exportId].extractedShapes.push(extractedShape);
-    }
-  });
+  // const result = await Promise.all(extractShapePromises);
+  // result.forEach((extractedShape) => {
+  //   if (extractedShape) {
+  //     resources[extractedShape.exportId].extractedShapes.push(extractedShape);
+  //   }
+  // });
 };
 
 const createMovieClips = async (transformMatrices, colorMatrices, textures, resources) => {
   await extractShapes(textures, resources);
-  const generateMovieClipsPromises = [];
-  Object.keys(resources).forEach((exportId) => {
-    const movieClip = resources[exportId];
+  // const generateMovieClipsPromises = [];
+  // Object.keys(resources).forEach((exportId) => {
+  //   const movieClip = resources[exportId];
 
-    if (movieClip.type === 'movieClip') {
-      movieClip.frames.forEach((frame, frameIndex) => {
-        frame.triples.forEach((triple, tripleIndex) => {
-          const resource = resources[movieClip.resourcesMapping[triple[0]]];
-          const transformation = getTransformMatrix(transformMatrices, triple[1]);
-          const colorTransformation = getColorTransformation(colorMatrices, triple[2]);
-          generateMovieClipsPromises.push(
-            applyOperations(`out/MovieClip${exportId}-frame${frameIndex}-triple${tripleIndex}`, resource, transformation, colorTransformation),
-          );
-        });
-      });
-    }
-  });
+  //   if (movieClip.type === 'movieClip') {
+  //     movieClip.frames.forEach((frame, frameIndex) => {
+  //       frame.triples.forEach((triple, tripleIndex) => {
+  //         const resource = resources[movieClip.resourcesMapping[triple[0]]];
+  //         const transformation = getTransformMatrix(transformMatrices, triple[1]);
+  //         const colorTransformation = getColorTransformation(colorMatrices, triple[2]);
+  //         generateMovieClipsPromises.push(
+  //           applyOperations(`out/MovieClip${exportId}-frame${frameIndex}-triple${tripleIndex}`, resource, transformation, colorTransformation),
+  //         );
+  //       });
+  //     });
+  //   }
+  // });
 
-  const result = await Promise.all(generateMovieClipsPromises);
+  // const result = await Promise.all(generateMovieClipsPromises);
 };
 
 const getScBuffer = async (scFileName) => {
