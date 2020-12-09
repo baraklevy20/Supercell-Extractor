@@ -15,7 +15,8 @@ const addResource = (resources, resource) => {
   resources[resource.exportId] = resource;
 };
 
-const readNormalScFile = async (filename, buffer, textures, isOld = false) => {
+const readNormalScFile = (filename, buffer, textures, isOld = false) => {
+  console.log(`starting ${filename}`);
   // These are used to verify if you're attempting to read too many shapes/animations
   const resources = {};
   const transformMatrices = [];
@@ -68,6 +69,11 @@ const readNormalScFile = async (filename, buffer, textures, isOld = false) => {
     switch (blockType) {
       case 0x07:
       case 0x0f:
+      case 0x14:
+      case 0x15:
+      case 0x19:
+      case 0x21:
+      case 0x2c:
         addResource(resources, textFieldSection.readTextField(buffer, blockType));
         break;
       case 0x08:
@@ -76,9 +82,14 @@ const readNormalScFile = async (filename, buffer, textures, isOld = false) => {
       case 0x09:
         colorMatrices.push(colorVariationSection.readColorTransform(buffer));
         break;
+      case 0x03:
+      case 0x0a:
       case 0x0c:
-        addResource(resources, movieClipSection.readMovieClip(buffer, resources, transformMatrices, colorMatrices));
+      case 0x0e:
+      case 0x23:
+        addResource(resources, movieClipSection.readMovieClip(buffer));
         break;
+      case 0x02:
       case 0x12:
         if (isOld) {
           buffer.readBuffer(blockSize);
@@ -88,11 +99,11 @@ const readNormalScFile = async (filename, buffer, textures, isOld = false) => {
         break;
       default: {
         const block = buffer.readBuffer(blockSize);
-        // console.log(
-        //   `${i} Block type: ${blockType.toString(
-        //     16,
-        //   )}. Size: ${blockSize}. Data: ${block.toString('hex')}`,
-        // );
+        console.log(
+          `${i} Block type: ${blockType.toString(
+            16,
+          )}. Size: ${blockSize}. Data: ${block.slice(0, 20).toString('hex')}`,
+        );
       }
     }
     i++;
@@ -101,8 +112,8 @@ const readNormalScFile = async (filename, buffer, textures, isOld = false) => {
   // const result = await Promise.all(readSpritePromises);
   // resources.push(...result);
 
-  await createMovieClips(transformMatrices, colorMatrices, textures, resources);
   console.log(`done with blocks. total: ${i}, filename: ${filename}`);
+  // await createMovieClips(transformMatrices, colorMatrices, textures, resources);
 };
 
 const applyOperations = async (path, resource, transformation, colorTransformation) => {
@@ -210,7 +221,6 @@ const createMovieClips = async (transformMatrices, colorMatrices, textures, reso
   });
 
   const result = await Promise.all(generateMovieClipsPromises);
-  console.log('done');
 };
 
 const getScBuffer = async (scFileName) => {

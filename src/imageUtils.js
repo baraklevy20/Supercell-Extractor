@@ -78,9 +78,6 @@ const extractShape = async (exportId, polygon, rotationAngle, texture) => {
     .extract(region)
     .toBuffer();
 
-  if (exportId === 3) {
-    console.log('wtf');
-  }
   const rotatedShape = await sharp(extractedShape, {
     raw:
     {

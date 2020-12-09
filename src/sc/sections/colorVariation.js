@@ -8,7 +8,6 @@ const readColorTransform = (buffer) => {
     greenAddition: buffer.readUInt8(),
     blueAddition: buffer.readUInt8(),
   };
-  console.log('color transform:', colorTransform);
   return colorTransform;
 };
 

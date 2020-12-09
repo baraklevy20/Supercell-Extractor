@@ -2,14 +2,13 @@ const utils = require('../utils');
 
 const readMovieClip = (buffer) => {
   const exportId = buffer.readUInt16LE();
-  console.log(`MovieClip exportId: ${exportId}`);
-  if (exportId === 32) {
-    console.log('working');
+  // console.log(`MovieClip exportId: ${exportId}`);
+  if (exportId === 3476) {
+    // console.log('working');
   }
   // console.log(exports[exportId]);
   const frameRate = buffer.readUInt8();
   const countFrames = buffer.readUInt16LE();
-  console.log(`frames: ${countFrames}`);
   const countTriples = buffer.readUInt32LE();
   const triples = [];
   // console.log(`count triples: ${countTriples}`);
@@ -19,7 +18,6 @@ const readMovieClip = (buffer) => {
     // Second number - index of transform matrix or default matrix if -1
     // Third number - index of color transform or default if -1
     const triple = [buffer.readInt16LE(), buffer.readInt16LE(), buffer.readInt16LE()];
-    console.log(triple);
     triples.push(triple);
   }
 
@@ -30,12 +28,12 @@ const readMovieClip = (buffer) => {
   }
   for (let i = 0; i < numberOfResources; i++) {
     const num = buffer.readUInt8();
-    console.log(`xuint8: ${num}`);
+    // console.log(`xuint8: ${num}`);
   }
 
   for (let i = 0; i < numberOfResources; i++) {
     const string = utils.readString(buffer);
-    // console.log(`id: ${resourcesMapping[i]} type: ${resources[resourcesMapping[i]].type} x string: ${string}`);
+    // console.log(`id: ${resourcesMapping[i]} x string: ${string}`);
   }
 
   let frameType;
@@ -54,7 +52,7 @@ const readMovieClip = (buffer) => {
         const numberOfTriplesInCurrentFrame = buffer.readUInt16LE();
         const frameName = utils.readString(buffer);
         if (frameName !== null) {
-          console.log(`frameName: ${frameName}`);
+          // console.log(`frameName: ${frameName}`);
         }
 
         const currentFrameTriples = [];
@@ -76,7 +74,12 @@ const readMovieClip = (buffer) => {
         const v28 = buffer.readInt32LE() * 0.05;
         const v29 = buffer.readInt32LE() * 0.05 + v27;
         const v30 = buffer.readInt32LE() * 0.05 + v28;
-        console.log(`frame type 0x1f: ${[v27, v28, v29, v30]}`);
+        // console.log(`frame type 0x1f: ${[v27, v28, v29, v30]}`);
+        break;
+      }
+      case 0x29: { // only happens in effects_brawler i think
+        const something = buffer.readUInt8();
+        // console.log(`frame type 0x29: ${something}`);
         break;
       }
       default:
