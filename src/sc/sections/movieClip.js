@@ -1,5 +1,3 @@
-const utils = require('../utils');
-
 const readMovieClip = (buffer) => {
   const exportId = buffer.readUInt16LE();
   // console.log(`MovieClip exportId: ${exportId}`);
@@ -32,7 +30,7 @@ const readMovieClip = (buffer) => {
   }
 
   for (let i = 0; i < numberOfResources; i++) {
-    const string = utils.readString(buffer);
+    const string = buffer.scReadString();
     // console.log(`id: ${resourcesMapping[i]} x string: ${string}`);
   }
 
@@ -50,7 +48,7 @@ const readMovieClip = (buffer) => {
     switch (frameType) {
       case 0x0b: {
         const numberOfTriplesInCurrentFrame = buffer.readUInt16LE();
-        const frameName = utils.readString(buffer);
+        const frameName = buffer.scReadString();
         if (frameName !== null) {
           // console.log(`frameName: ${frameName}`);
         }

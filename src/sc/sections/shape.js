@@ -152,7 +152,7 @@ const readShape = (buffer, textures) => {
     }
 
     polygons.push(polygon);
-    const size = 0.1;
+    const size = 0.05;
     shapes.push({
       textureId,
       polygon,

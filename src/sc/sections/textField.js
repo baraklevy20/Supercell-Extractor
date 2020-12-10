@@ -1,9 +1,7 @@
-const utils = require('../utils');
-
 const readTextField = (buffer, blockType) => {
   const exportId = buffer.readInt16LE();
   // console.log(`TextField exportID: ${exportId}`);
-  const text = utils.readString(buffer);
+  const text = buffer.scReadString();
   const v60 = buffer.readInt32LE();
   const c1 = buffer.readUInt8(); // maybe text modifier - 0 or 1
   const c2 = buffer.readUInt8(); // maybe text modifier - 0 or 1
@@ -16,7 +14,7 @@ const readTextField = (buffer, blockType) => {
   const c9 = buffer.readInt16LE();
   const c10 = buffer.readInt16LE();
   const c11 = buffer.readUInt8(); // maybe text modifier - 0 or 1
-  const text2 = utils.readString(buffer);
+  const text2 = buffer.scReadString();
 
   let c12;
   let c13;
@@ -32,8 +30,7 @@ const readTextField = (buffer, blockType) => {
       c13 = buffer.readUInt32LE();
       c14 = buffer.readInt16LE();
       c15 = buffer.readInt16LE();
-    }
-    else if (blockType === 0x2c) {
+    } else if (blockType === 0x2c) {
       buffer.readBuffer(11); // not sure what these are yet
     }
   }

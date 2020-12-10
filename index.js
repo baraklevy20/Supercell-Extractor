@@ -1,4 +1,5 @@
 const fs = require('fs');
+require('./src/sc/scBuffer');
 const { readScFile, readOldScFile } = require('./src/sc/scFormat');
 
 const main = async () => {
@@ -12,11 +13,12 @@ const main = async () => {
   // readScFile('effects_brawler');
   // readScFile('events');
   // readScFile('characters');
-  // readScFile('supercell_id'); // lots of gradients
-  readScFile('loading');
+  readScFile('supercell_id'); // lots of gradients
+  // readScFile('loading');
   // readScFile('ui');
   // readScFile('debug');
   // readScFile('background_basic');
+  // readScFile('background_snowtel');
   // readOldScFile('overlay');
 };
 
