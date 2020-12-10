@@ -120,16 +120,20 @@ const readShape = (buffer, textures) => {
       textureRegion,
     );
 
+    const realOutputRegion = {
+      minX: Math.round(outputRegion.minX * size),
+      maxX: Math.round(outputRegion.maxX * size),
+      minY: Math.round(outputRegion.minY * size),
+      maxY: Math.round(outputRegion.maxY * size),
+    };
+
     polygons.push({
       isPolygon,
       textureId,
       textureCoordinates,
       rotationAngle,
       outputCoordinates: outputCoordinates.map((c) => [Math.round(c[0] * size), Math.round(c[1] * size)]),
-      scaleWidth: Math.round(((outputRegion.maxX - outputRegion.minX) * size)),
-      scaleHeight: Math.round(((outputRegion.maxY - outputRegion.minY) * size)),
-      minX: Math.round(outputRegion.minX * size),
-      minY: Math.round(outputRegion.minY * size),
+      outputRegion: realOutputRegion,
     });
   }
 
@@ -193,7 +197,7 @@ const getShapeRegion = (polygons) => {
 const extractShape = async (filename, resource, textures) => {
   const extractPolygonPromises = [];
   const shapeRegion = getShapeRegion(resource.polygons);
-  resource.polygons.forEach(async (polygon, index) => {
+  resource.polygons.forEach((polygon, index) => {
     if (polygon.isPolygon) {
       extractPolygonPromises.push(imageUtils.extractPolygon(
         resource.exportId,
@@ -234,8 +238,8 @@ const extractShape = async (filename, resource, textures) => {
         width: r.width,
         height: r.height,
       },
-      left: resource.polygons[r.polygonIndex].minX - shapeRegion.minX,
-      top: resource.polygons[r.polygonIndex].minY - shapeRegion.minY,
+      left: resource.polygons[r.polygonIndex].outputRegion.minX - shapeRegion.minX,
+      top: resource.polygons[r.polygonIndex].outputRegion.minY - shapeRegion.minY,
     })))
     .toBuffer();
   await sharp(shape, {
@@ -267,7 +271,13 @@ const extractShapes = async (filename, textures, resources) => {
     }
   });
 
-  const shapes = await Promise.all(extractShapePromises);
+  const result = await Promise.all(extractShapePromises);
+  const shapes = {};
+
+  result.forEach((r) => {
+    shapes[r.exportId] = r;
+  });
+
   logger.info('Finished extracting shapes');
   return shapes;
 };

@@ -14,10 +14,10 @@ const main = async () => {
   // readScFile('events');
   // readScFile('characters');
   // readScFile('supercell_id'); // lots of gradients
-  readScFile('loading');
+  // readScFile('loading');
   // readScFile('ui');
   // readScFile('debug');
-  // readScFile('background_basic');
+  readScFile('background_basic');
   // readScFile('background_snowtel');
   // readOldScFile('overlay');
 };

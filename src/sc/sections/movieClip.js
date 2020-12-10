@@ -112,7 +112,7 @@ const getColorTransformation = (colorMatrices, index) => (
   index !== -1 ? colorMatrices[index] : null
 );
 
-const applyOperations = async (path, resource, transformation, colorTransformation) => {
+const applyOperations = (path, resource, transformation, colorTransformation) => {
   if (resource.type !== 'shape') {
     // logger.debug(path, resource.type);
   } else {
@@ -136,7 +136,9 @@ const applyOperations = async (path, resource, transformation, colorTransformati
       });
     }
 
-    await imageUtils.saveSharp(`${path}`, transformed);
+    return transformed;
+
+    // await imageUtils.saveMovieClip(`${path}`, transformed);
   }
 };
 
@@ -153,10 +155,12 @@ const createMovieClips = async (filename, transformMatrices, colorMatrices, text
   logger.info('Extracting movie clips');
   // eventually i'll split resources into text fields and movie clips as well
   const generateMovieClipsPromises = [];
-  Object.keys(resources).forEach((exportId) => {
+  Object.keys(resources).forEach(async (exportId) => {
+    // exportId = 16;
     const movieClip = getResourceByExportId(resources, shapes, exportId);
 
     if (movieClip.type === 'movieClip') {
+      const currentMovieClipFinalFrames = [];
       movieClip.frames.forEach((frame, frameIndex) => {
         frame.frameResources.forEach((frameResource, frameResourceIndex) => {
           const resource = getResourceByExportId(
@@ -173,16 +177,67 @@ const createMovieClips = async (filename, transformMatrices, colorMatrices, text
             frameResource.colorTransformIndex,
           );
 
-          generateMovieClipsPromises.push(
-            applyOperations(
-              `out/${filename}-movieclip${exportId}-frame${frameIndex}-frameResource${frameResourceIndex}`,
-              resource,
-              transformation,
-              colorTransformation,
-            ),
+          const finalFrame = applyOperations(
+            `out/${filename}-movieclip${exportId}-frame${frameIndex}-frameResource${frameResourceIndex}`,
+            resource,
+            transformation,
+            colorTransformation,
           );
+
+          if (finalFrame) {
+            currentMovieClipFinalFrames.push(finalFrame);
+          }
         });
       });
+
+      console.log('object');
+
+      // const resizedImages = [];
+      const widths = [];
+      const heights = [];
+      const buffers = [];
+
+      for (let i = 0; i < currentMovieClipFinalFrames.length; i += 1) {
+        const result = await currentMovieClipFinalFrames[i].toBuffer({ resolveWithObject: true });
+        widths.push(result.info.width);
+        heights.push(result.info.height);
+        buffers.push(result.data);
+      }
+
+      const maxWidth = Math.max(...widths);
+      const pageHeight = Math.max(...heights);
+      const imageComposites = [];
+
+      for (let i = 0; i < currentMovieClipFinalFrames.length; i += 1) {
+        // Resize each frame to the maximum height
+        const pixelsToAdd = (pageHeight - heights[i]) * widths[i];
+        buffers[i] = Buffer.concat([buffers[i], Buffer.from(new Array(pixelsToAdd * 4))]);
+
+        // Generate composite object
+        imageComposites.push({
+          input: buffers[i],
+          raw: {
+            width: widths[i],
+            height: pageHeight,
+            channels: 4,
+          },
+          top: i * pageHeight,
+          left: 0,
+        });
+      }
+
+      const strip = sharp({
+        create: {
+          width: maxWidth,
+          height: pageHeight * buffers.length,
+          channels: 4,
+          background: '#00000000',
+        },
+      })
+        .composite(imageComposites);
+      // await strip.png().toFile('banana.png');
+
+      strip.webp({ pageHeight }).toFile(`out/${filename}-movieclip${exportId}.webp`);
     }
   });
 

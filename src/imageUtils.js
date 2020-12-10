@@ -70,6 +70,9 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
     .rotate(polygon.rotationAngle)
     .toBuffer();
 
+  const scaleWidth = polygon.outputRegion.maxX - polygon.outputRegion.minX;
+  const scaleHeight = polygon.outputRegion.maxY - polygon.outputRegion.minY;
+
   const resizedShape = await sharp(rotatedShape, {
     raw:
     {
@@ -78,15 +81,15 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
       height: Math.abs(polygon.rotationAngle) === 90 ? region.width : region.height,
     },
   })
-    .resize(polygon.scaleWidth, polygon.scaleHeight)
+    .resize(scaleWidth, scaleHeight)
     .toBuffer();
 
   return {
     exportId,
     polygonIndex,
     pixels: resizedShape,
-    width: polygon.scaleWidth,
-    height: polygon.scaleHeight,
+    width: scaleWidth,
+    height: scaleHeight,
   };
 };
 
@@ -161,7 +164,11 @@ const createShapeWithColor = async (outputCoordinates, color1, color2, tx, ty) =
 };
 
 const saveSharp = async (path, sharpImage) => {
-  sharpImage.toFile(`${path}.png`);
+  // sharpImage.webp({ pageHeight: 20, loop: 0 }).toFile(`${path}.webp`);
+};
+
+const saveMovieClip = async (path, sharpImage) => {
+  sharpImage.webp({  loop: 0 }).toFile(`${path}.webp`);
 };
 
 module.exports = {
@@ -170,4 +177,5 @@ module.exports = {
   createShapeWithColor,
   applyColorTransformationMutable,
   saveSharp,
+  saveMovieClip,
 };
