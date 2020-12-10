@@ -114,17 +114,17 @@ const getColorTransformation = (colorMatrices, index) => (
 
 const applyOperations = async (path, resource, transformation, colorTransformation) => {
   if (resource.type !== 'shape') {
-    logger.debug(path, resource.type);
+    // logger.debug(path, resource.type);
   } else {
     if (colorTransformation !== null) {
-      imageUtils.applyColorTransformationMutable(resource.finalShape.pixels, colorTransformation);
+      imageUtils.applyColorTransformationMutable(resource.pixels, colorTransformation);
     }
-    let transformed = sharp(resource.finalShape.pixels, {
+    let transformed = sharp(resource.pixels, {
       raw:
       {
         channels: 4,
-        width: resource.finalShape.width,
-        height: resource.finalShape.height,
+        width: resource.width,
+        height: resource.height,
       },
     });
 
@@ -140,16 +140,30 @@ const applyOperations = async (path, resource, transformation, colorTransformati
   }
 };
 
-const createMovieClips = async (transformMatrices, colorMatrices, textures, resources) => {
-  await shapeSection.extractShapes(textures, resources);
+const getResourceByExportId = (resources, shapes, exportId) => {
+  if (exportId in shapes) {
+    return shapes[exportId];
+  }
+
+  return resources[exportId];
+};
+
+const createMovieClips = async (filename, transformMatrices, colorMatrices, textures, resources) => {
+  const shapes = await shapeSection.extractShapes(filename, textures, resources);
+  logger.info('Extracting movie clips');
+  // eventually i'll split resources into text fields and movie clips as well
   const generateMovieClipsPromises = [];
   Object.keys(resources).forEach((exportId) => {
-    const movieClip = resources[exportId];
+    const movieClip = getResourceByExportId(resources, shapes, exportId);
 
     if (movieClip.type === 'movieClip') {
       movieClip.frames.forEach((frame, frameIndex) => {
         frame.frameResources.forEach((frameResource, frameResourceIndex) => {
-          const resource = resources[movieClip.resourcesMapping[frameResource.resourceIndex]];
+          const resource = getResourceByExportId(
+            resources,
+            shapes,
+            movieClip.resourcesMapping[frameResource.resourceIndex],
+          );
           const transformation = getTransformMatrix(
             transformMatrices,
             frameResource.transformMatrixIndex,
@@ -161,7 +175,7 @@ const createMovieClips = async (transformMatrices, colorMatrices, textures, reso
 
           generateMovieClipsPromises.push(
             applyOperations(
-              `out/MovieClip${exportId}-frame${frameIndex}-frameResource${frameResourceIndex}`,
+              `out/${filename}-movieclip${exportId}-frame${frameIndex}-frameResource${frameResourceIndex}`,
               resource,
               transformation,
               colorTransformation,
@@ -173,6 +187,7 @@ const createMovieClips = async (transformMatrices, colorMatrices, textures, reso
   });
 
   await Promise.all(generateMovieClipsPromises);
+  logger.info('Finished extracting movie clips');
 };
 
 module.exports = {

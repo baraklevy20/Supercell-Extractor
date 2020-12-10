@@ -78,7 +78,7 @@ const readTextures = (scFileName, buffer) => {
     });
 
     imageUtils.saveImage(
-      `out/${scFileName} - texture${textures.length}.png`,
+      `out/${scFileName}-texture${textures.length}.png`,
       textures[textures.length - 1].width,
       textures[textures.length - 1].height,
       textures[textures.length - 1].pixels,

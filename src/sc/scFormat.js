@@ -157,6 +157,7 @@ const readScFile = async (scFileName) => {
   const textures = textureSection.readTextures(scFileName, await getScBuffer(`${scFileName}_tex`));
   const scFileContent = readNormalScFile(scFileName, await getScBuffer(scFileName), textures);
   await movieClipSection.createMovieClips(
+    scFileName,
     scFileContent.transformMatrices,
     scFileContent.colorMatrices,
     textures,

@@ -13,8 +13,8 @@ const main = async () => {
   // readScFile('effects_brawler');
   // readScFile('events');
   // readScFile('characters');
-  readScFile('supercell_id'); // lots of gradients
-  // readScFile('loading');
+  // readScFile('supercell_id'); // lots of gradients
+  readScFile('loading');
   // readScFile('ui');
   // readScFile('debug');
   // readScFile('background_basic');
