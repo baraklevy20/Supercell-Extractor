@@ -6,7 +6,8 @@ const saveImage = (path, width, height, pixels) => {
   const image = new Jimp(width, height);
   for (let i = 0; i < height; i += 1) {
     for (let j = 0; j < width; j += 1) {
-      image.setPixelColor(pixels[k += 1], j, i);
+      image.setPixelColor(pixels[k], j, i);
+      k += 1;
     }
   }
   image.write(path, (err) => {

@@ -11,37 +11,41 @@ const readMovieClip = (buffer) => {
   }
 
   const frameRate = buffer.readUInt8();
-  const countFrames = buffer.readUInt16LE();
-  const countTriples = buffer.readUInt32LE();
-  const triples = [];
+  const framesCount = buffer.readUInt16LE();
+  const frameResourcesCount = buffer.readUInt32LE();
+  const frameResources = [];
 
-  for (let i = 0; i < countTriples; i++) {
+  for (let i = 0; i < frameResourcesCount; i += 1) {
     // First number - index of resourcesMapping
     // Second number - index of transform matrix or default matrix if -1
     // Third number - index of color transform or default if -1
-    const triple = [buffer.readInt16LE(), buffer.readInt16LE(), buffer.readInt16LE()];
-    triples.push(triple);
+    frameResources.push({
+      resourceIndex: buffer.readInt16LE(),
+      transformMatrixIndex: buffer.readInt16LE(),
+      colorTransformIndex: buffer.readInt16LE(),
+    });
   }
 
   const numberOfResources = buffer.readUInt16LE();
   const resourcesMapping = [];
-  for (let i = 0; i < numberOfResources; i++) {
+  for (let i = 0; i < numberOfResources; i += 1) {
     resourcesMapping.push(buffer.readInt16LE());
   }
-  for (let i = 0; i < numberOfResources; i++) {
+  for (let i = 0; i < numberOfResources; i += 1) {
     const num = buffer.readUInt8();
-    // logger.debug(`xuint8: ${num}`);
+    // logger.debug(`number uint8: ${num}`);
   }
 
-  for (let i = 0; i < numberOfResources; i++) {
-    // this is always empty on shapes. usually contains something with textfields and movies, but not always
+  for (let i = 0; i < numberOfResources; i += 1) {
+    // this is always empty on shapes.
+    // usually contains something with text fields and movies, but not always
     // maybe default string?
     const string = buffer.scReadString();
     // logger.debug(`id: ${resourcesMapping[i]} x string: ${string}`);
   }
 
   let frameType;
-  let currentTripleIndex = 0;
+  let currentFrameResourceIndex = 0;
   const frames = [];
 
   while (frameType !== 0) {
@@ -53,24 +57,23 @@ const readMovieClip = (buffer) => {
     }
     switch (frameType) {
       case 0x0b: {
-        const numberOfTriplesInCurrentFrame = buffer.readUInt16LE();
+        const numberOfResourcesInCurrentFrame = buffer.readUInt16LE();
         const frameName = buffer.scReadString();
         if (frameName !== null) {
           // logger.debug(`frameName: ${frameName}`);
         }
 
-        const currentFrameTriples = [];
+        const currentFrameResources = [];
 
-        for (let i = 0; i < numberOfTriplesInCurrentFrame; i++) {
-          const currentTriple = triples[currentTripleIndex + i];
-          currentFrameTriples.push(currentTriple);
+        for (let i = 0; i < numberOfResourcesInCurrentFrame; i += 1) {
+          currentFrameResources.push(frameResources[currentFrameResourceIndex + i]);
         }
 
         frames.push({
-          triples: currentFrameTriples,
+          frameResources: currentFrameResources,
         });
 
-        currentTripleIndex += numberOfTriplesInCurrentFrame;
+        currentFrameResourceIndex += numberOfResourcesInCurrentFrame;
         break;
       }
       case 0x1f: {
@@ -144,7 +147,6 @@ const applyOperations = async (path, resource, transformation, colorTransformati
       pixels[4 * k + 2] = Math.min(255, pixels[4 * k + 2] + colorTransformation.blueAddition);
     }
 
-    // const transformed = e.shape.affine(transformation.matrix, { background: 'white', odx: transformation.odx, ody: transformation.ody });
     const transformed = sharp(pixels, {
       raw:
         {
@@ -166,19 +168,26 @@ const createMovieClips = async (transformMatrices, colorMatrices, textures, reso
 
     if (movieClip.type === 'movieClip') {
       movieClip.frames.forEach((frame, frameIndex) => {
-        frame.triples.forEach((triple, tripleIndex) => {
-          const resource = resources[movieClip.resourcesMapping[triple[0]]];
-          const transformation = getTransformMatrix(transformMatrices, triple[1]);
-          const colorTransformation = getColorTransformation(colorMatrices, triple[2]);
+        frame.frameResources.forEach((frameResource, frameResourceIndex) => {
+          const resource = resources[movieClip.resourcesMapping[frameResource.resourceIndex]];
+          const transformation = getTransformMatrix(
+            transformMatrices,
+            frameResource.transformMatrixIndex,
+          );
+          const colorTransformation = getColorTransformation(
+            colorMatrices,
+            frameResource.colorTransformIndex,
+          );
+
           generateMovieClipsPromises.push(
-            applyOperations(`out/MovieClip${exportId}-frame${frameIndex}-triple${tripleIndex}`, resource, transformation, colorTransformation),
+            applyOperations(`out/MovieClip${exportId}-frame${frameIndex}-frameResource${frameResourceIndex}`, resource, transformation, colorTransformation),
           );
         });
       });
     }
   });
 
-  const result = await Promise.all(generateMovieClipsPromises);
+  await Promise.all(generateMovieClipsPromises);
 };
 
 module.exports = {

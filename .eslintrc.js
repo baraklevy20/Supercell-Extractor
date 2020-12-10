@@ -11,5 +11,6 @@ module.exports = {
   },
   rules: {
     'no-bitwise': 'off',
+    'no-mixed-operators': 'off',
   },
 };
