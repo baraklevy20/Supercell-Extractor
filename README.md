@@ -1,4 +1,4 @@
 # Supercell-Viewer
-Extract SC and SC3d files for Brawl Stars, Clash of Clans, Hay Day and Clash Royal (still in development).
+Extract SC files for Brawl Stars, Clash of Clans, Hay Day and Clash Royal (still in development).
 
-Currently only supports SC.
+This project is purely for fun. You may not use it to develop a clone to these games or hack the games in any way.
