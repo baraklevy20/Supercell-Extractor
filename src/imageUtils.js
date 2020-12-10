@@ -4,9 +4,9 @@ const sharp = require('sharp');
 const saveImage = (path, width, height, pixels) => {
   let k = 0;
   const image = new Jimp(width, height);
-  for (let i = 0; i < height; i++) {
-    for (let j = 0; j < width; j++) {
-      image.setPixelColor(pixels[k++], j, i);
+  for (let i = 0; i < height; i += 1) {
+    for (let j = 0; j < width; j += 1) {
+      image.setPixelColor(pixels[k += 1], j, i);
     }
   }
   image.write(path, (err) => {
@@ -17,8 +17,8 @@ const saveImage = (path, width, height, pixels) => {
 const saveImageWithPolygon = (path, width, height, pixels, polygon) => {
   const newPixels = pixels;
   const radius = 32;
-  for (let j = 0; j < polygon.length; j++) {
-    for (let k = 0; k < radius; k++) {
+  for (let j = 0; j < polygon.length; j += 1) {
+    for (let k = 0; k < radius; k += 1) {
       const x = polygon[j][0];
       const y = polygon[j][1];
       newPixels[y * width + x + k] = 0xff0000ff;
@@ -33,7 +33,7 @@ const saveImageWithPolygon = (path, width, height, pixels, polygon) => {
 const extractShapeAndResize = async (exportId, polygonIndex, shape, texture) => {
   const polygonString = shape.polygon.reduce((acc, vertex) => `${acc} ${vertex[0]},${vertex[1]}`, '');
   const newPixels = [];
-  for (let k = 0; k < texture.pixels.length; k++) {
+  for (let k = 0; k < texture.pixels.length; k += 1) {
     const c = texture.pixels[k];
     newPixels.push(...[(c >> 24) & 255, (c >> 16) & 255, (c >> 8) & 255, c & 255]);
   }

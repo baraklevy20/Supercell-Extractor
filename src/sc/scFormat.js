@@ -10,6 +10,7 @@ const textureSection = require('./sections/texture');
 const movieClipSection = require('./sections/movieClip');
 
 const addResource = (resources, resource) => {
+  // eslint-disable-next-line no-param-reassign
   resources[resource.exportId] = resource;
 };
 
@@ -37,11 +38,11 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
   const exportsIds = [];
   const exports = {};
 
-  for (let i = 0; i < numberOfExports; i++) {
+  for (let i = 0; i < numberOfExports; i += 1) {
     exportsIds.push(buffer.readUInt16LE());
   }
 
-  for (let i = 0; i < numberOfExports; i++) {
+  for (let i = 0; i < numberOfExports; i += 1) {
     const exportName = buffer.scReadString();
     logger.debug(`${exportsIds[i].toString()} - ${exportName}`);
     exports[exportsIds[i]] = exportName;
@@ -129,7 +130,7 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
         );
       }
     }
-    i++;
+    i += 1;
   }
 
   logger.info(`Finished reading file sections. Number of sections: ${i}, filename: ${filename}`);
