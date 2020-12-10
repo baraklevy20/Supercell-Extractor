@@ -7,4 +7,5 @@ node_modules/
 /out/
 /sc3d/
 *.png
+*.webp
 *.log

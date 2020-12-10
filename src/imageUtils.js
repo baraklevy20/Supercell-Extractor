@@ -1,6 +1,7 @@
 const Jimp = require('jimp');
 const sharp = require('sharp');
 
+// todo remove entire file, it's useless
 const saveImage = (path, width, height, pixels) => {
   let k = 0;
   const image = new Jimp(width, height);
@@ -163,19 +164,9 @@ const createShapeWithColor = async (outputCoordinates, color1, color2, tx, ty) =
   };
 };
 
-const saveSharp = async (path, sharpImage) => {
-  // sharpImage.webp({ pageHeight: 20, loop: 0 }).toFile(`${path}.webp`);
-};
-
-const saveMovieClip = async (path, sharpImage) => {
-  sharpImage.webp({  loop: 0 }).toFile(`${path}.webp`);
-};
-
 module.exports = {
   saveImage,
   extractPolygon,
   createShapeWithColor,
   applyColorTransformationMutable,
-  saveSharp,
-  saveMovieClip,
 };

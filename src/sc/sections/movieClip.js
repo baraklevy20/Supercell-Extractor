@@ -5,7 +5,7 @@ const logger = require('../../../logger');
 
 const readMovieClip = (buffer) => {
   const exportId = buffer.readUInt16LE();
-  // logger.debug(`MovieClip exportId: ${exportId}`);
+  logger.debug(`MovieClip exportId: ${exportId}`);
   if (exportId === 3476) {
     // logger.debug('working');
   }
@@ -24,6 +24,7 @@ const readMovieClip = (buffer) => {
       transformMatrixIndex: buffer.readInt16LE(),
       colorTransformIndex: buffer.readInt16LE(),
     });
+    logger.debug(JSON.stringify(frameResources[i]));
   }
 
   const numberOfResources = buffer.readUInt16LE();
@@ -32,6 +33,7 @@ const readMovieClip = (buffer) => {
     resourcesMapping.push(buffer.readInt16LE());
   }
   for (let i = 0; i < numberOfResources; i += 1) {
+    // this might be the delay between each frame? just an idea, no basis behind it
     const num = buffer.readUInt8();
     // logger.debug(`number uint8: ${num}`);
   }
@@ -208,17 +210,15 @@ const createMovieClips = async (filename, transformMatrices, colorMatrices, text
       const pageHeight = Math.max(...heights);
       const imageComposites = [];
 
+      // todo remove composite, it's very slow.
+      // use direct pixel access to generate the strip
       for (let i = 0; i < currentMovieClipFinalFrames.length; i += 1) {
-        // Resize each frame to the maximum height
-        const pixelsToAdd = (pageHeight - heights[i]) * widths[i];
-        buffers[i] = Buffer.concat([buffers[i], Buffer.from(new Array(pixelsToAdd * 4))]);
-
         // Generate composite object
         imageComposites.push({
           input: buffers[i],
           raw: {
             width: widths[i],
-            height: pageHeight,
+            height: heights[i],
             channels: 4,
           },
           top: i * pageHeight + Math.floor((pageHeight - heights[i]) / 2),
@@ -240,7 +240,7 @@ const createMovieClips = async (filename, transformMatrices, colorMatrices, text
         await strip.png().toFile('banana.png');
       }
 
-      strip.webp({ pageHeight }).toFile(`out/${filename}-movieclip${exportId}.webp`);
+      strip.webp({ pageHeight, loop: 0 }).toFile(`out/${filename}-movieclip${exportId}.webp`);
     }
   });
 
