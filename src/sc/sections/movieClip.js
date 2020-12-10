@@ -221,8 +221,8 @@ const createMovieClips = async (filename, transformMatrices, colorMatrices, text
             height: pageHeight,
             channels: 4,
           },
-          top: i * pageHeight,
-          left: 0,
+          top: i * pageHeight + Math.floor((pageHeight - heights[i]) / 2),
+          left: Math.floor((maxWidth - widths[i]) / 2),
         });
       }
 
@@ -235,7 +235,10 @@ const createMovieClips = async (filename, transformMatrices, colorMatrices, text
         },
       })
         .composite(imageComposites);
-      // await strip.png().toFile('banana.png');
+
+      if (movieClip.exportId === 16) {
+        await strip.png().toFile('banana.png');
+      }
 
       strip.webp({ pageHeight }).toFile(`out/${filename}-movieclip${exportId}.webp`);
     }
