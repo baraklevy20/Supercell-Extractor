@@ -1,6 +1,8 @@
+const logger = require('../../../logger');
+
 const readTextField = (buffer, blockType) => {
   const exportId = buffer.readInt16LE();
-  // console.log(`TextField exportID: ${exportId}`);
+  // logger.info(`TextField exportID: ${exportId}`);
   const text = buffer.scReadString();
   const v60 = buffer.readInt32LE();
   const c1 = buffer.readUInt8(); // maybe text modifier - 0 or 1
@@ -60,7 +62,7 @@ const readTextField = (buffer, blockType) => {
 
   return textField;
 
-  // console.log('TextField: ', textField);
+  // logger.info('TextField: ', textField);
 };
 
 module.exports = {

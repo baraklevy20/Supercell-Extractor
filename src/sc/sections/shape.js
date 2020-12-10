@@ -1,11 +1,10 @@
-const readShape = (buffer, textures) => {
-  // This is auto incremented
-  const exportId = buffer.readInt16LE();
-  // console.log(`Shape exportID: ${exportId}`);
+const sharp = require('sharp');
+const imageUtils = require('../../imageUtils');
 
-  if (exportId === 0) {
-    // console.log('wtf');
-  }
+const readShape = (buffer, textures) => {
+  const exportId = buffer.readInt16LE();
+  // logger.debug(`Shape exportID: ${exportId}`);
+
   const numberOfPolygons = buffer.readUInt16LE();
   const totalNumberOfVertices = buffer.readUInt16LE();
 
@@ -14,53 +13,32 @@ const readShape = (buffer, textures) => {
 
   const polygons = [];
   let textureId;
-  let oldTextureId;
   while (innerBlockSize !== 0) {
     const blockHeader = buffer.readUInt8(); // either 0x16=22 or 0x00=0
-    // console.log(blockHeader);
     innerBlockSize = buffer.readUInt32LE();
 
     if (innerBlockSize === 0) {
       break;
     }
 
-    // console.log(`Type 12 block header: ${blockHeader}`);
+    // logger.debug(`Type 12 block header: ${blockHeader}`);
 
     textureId = buffer.readUInt8();
-    // console.log(`Header: ${blockHeader} Polygons: ${numberOfPolygons} TextureID: ${textureId} Layout type: ${textures[textureId].layoutType} Pixel Format: ${textures[textureId].pixelFormat}`);
-
-    if (oldTextureId !== undefined && oldTextureId !== textureId) {
-      // console.log('DIFFERENT TEXTURE, SAME SHAPE');
-    }
-    oldTextureId = textureId;
     const numberOfVertices = buffer.readUInt8();
     const coordinates = [];
 
     for (let j = 0; j < numberOfVertices; j++) {
-      // Layout type: 1 Pixel Format: 0 - 0.05
-      // Layout type: 1 Pixel Format: 6 - 0.05 * 10 / 7
-      // Layout type: 28 Pixel Format: 0 - 0.1
-      // Layout type: 1 Pixel Format: 0 - 0.1
-      // Layout type: 28 Pixel Format: 0 - 0.05
-
       const x = buffer.readInt32LE();
       const y = buffer.readInt32LE();
-      console.log([x, y]);
       coordinates.push([x, y]);
     }
 
-    // console.log(`${polygons.length}coordinates:`, coordinates);
+    // logger.debug(`${polygons.length}coordinates:`, coordinates);
 
     const polygon = [];
     for (let j = 0; j < numberOfVertices; j++) {
       const x = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].width);
       const y = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].height);
-      // let x = buffer.readUInt16LE();
-      // let y = buffer.readUInt16LE();
-      // // console.log(`polygon fake: ${[x * 5 / textures[textureId].width, y * 5 / textures[textureId].height]}`);
-      // console.log(`polygon real: ${[x / 0xffff * textures[textureId].width, y / 0xffff * textures[textureId].height]}`);
-      // x = Math.round(x / 0xffff * textures[textureId].width);
-      // y = Math.round(y / 0xffff * textures[textureId].height);
       polygon.push([x, y]);
     }
 
@@ -109,21 +87,18 @@ const readShape = (buffer, textures) => {
       && Math.fround(coordinate2[0] + polygon2[1]) === Math.fround(coordinate3[0] + polygon3[1])
     ) {
       rotationAngle = 90;
-      console.log('rotate 90');
     } else if (Math.fround(coordinate0[1] + polygon0[0]) === Math.fround(coordinate1[1] + polygon1[0])
       && Math.fround(coordinate0[0] - polygon0[1]) === Math.fround(coordinate1[0] - polygon1[1])
       && Math.fround(coordinate2[1] + polygon2[0]) === Math.fround(coordinate3[1] + polygon3[0])
       && Math.fround(coordinate2[0] - polygon2[1]) === Math.fround(coordinate3[0] - polygon3[1])
     ) {
       rotationAngle = -90;
-      console.log('rotate -90');
     } else if (Math.fround(coordinate0[0] - polygon0[0]) === Math.fround(coordinate1[0] - polygon1[0])
       && Math.fround(coordinate0[1] + polygon0[1]) === Math.fround(coordinate1[1] + polygon1[1])
       && Math.fround(coordinate2[0] - polygon2[0]) === Math.fround(coordinate3[0] - polygon3[0])
       && Math.fround(coordinate2[1] + polygon2[1]) === Math.fround(coordinate3[1] + polygon3[1])
     ) {
       rotationAngle = 180;
-      console.log('rotate 180');
     }
 
     const rotatePoint = (p, angle) => {
@@ -143,13 +118,10 @@ const readShape = (buffer, textures) => {
     // todo scale polygon, not coordinates
     const normalizedRotatedCoordinates = rotatedCoordinates.map((c) => [Math.ceil(c[0] * sx), Math.ceil(c[1] * sy)]);
 
-    // console.log('polygon: ', polygon);
+    // logger.debug('polygon: ', polygon);
 
     // maybe gradient. see supercell_id
     const isPolygon = polygonRegion.minX !== polygonRegion.maxX && polygonRegion.minY !== polygonRegion.maxY;
-    if (!isPolygon) {
-      console.log('ONE POINT POLYGON', exportId, polygon);
-    }
 
     polygons.push(polygon);
     const size = 0.05;
@@ -174,6 +146,122 @@ const readShape = (buffer, textures) => {
   return shape;
 };
 
+const extractColor = async (exportId, polygonIndex, shape, textures, tx, ty) => {
+  if (polygonIndex === 3) {
+    // logger.debug('what');
+  }
+  // todo sometimes polygon[0] = polygon[2] and polygon[1]=polygon[3] wtf
+  const color1Position = shape.polygon[0];
+  const color2Position = shape.polygon[0][0] !== shape.polygon[1][0]
+    || shape.polygon[0][1] !== shape.polygon[1][1] ? shape.polygon[1] : shape.polygon[2];
+  const extractedShape = await imageUtils.createShapeWithColor(
+    shape.coordinates,
+    textures[shape.textureId].pixels[color1Position[1] * textures[shape.textureId].width + color1Position[0]],
+    textures[shape.textureId].pixels[color2Position[1] * textures[shape.textureId].width + color2Position[0]],
+    tx,
+    ty,
+  );
+
+  return {
+    exportId,
+    polygonIndex,
+    pixels: extractedShape.pixels,
+    width: extractedShape.width,
+    height: extractedShape.height,
+  };
+};
+
+const getShapeRegion = (polygons) => {
+  const allX = [];
+  const allY = [];
+  polygons.forEach((polygon) => {
+    polygon.coordinates.forEach((coordinate) => {
+      allX.push(coordinate[0]);
+      allY.push(coordinate[1]);
+    });
+  });
+
+  const minX = Math.min(...allX);
+  const maxX = Math.max(...allX);
+  const minY = Math.min(...allY);
+  const maxY = Math.max(...allY);
+
+  return {
+    minX, maxX, minY, maxY,
+  };
+};
+
+const extractShapes = async (textures, resources) => {
+  for (const exportId in resources) {
+    const resource = resources[exportId];
+
+    if (resource.type === 'shape') {
+      const extractShapePromises = [];
+      const shapeRegion = getShapeRegion(resource.shapes);
+      resource.shapes.forEach(async (shape, index) => {
+        if (shape.isPolygon) {
+          extractShapePromises.push(imageUtils.extractShapeAndResize(
+            exportId,
+            index,
+            shape,
+            textures[shape.textureId],
+          ));
+        } else {
+          extractShapePromises.push(extractColor(exportId, index, shape, textures, shapeRegion.minX, shapeRegion.minY));
+        }
+      });
+
+      const result = await Promise.all(extractShapePromises);
+      const shapeWidth = Math.round(shapeRegion.maxX - shapeRegion.minX) + 1;
+      const shapeHeight = Math.round(shapeRegion.maxY - shapeRegion.minY) + 1;
+
+      // todo remove round, make sure coordinates are integers instead
+      const shape = await sharp({
+        create: {
+          width: shapeWidth,
+          height: shapeHeight,
+          channels: 4,
+          background: {
+            r: 0, g: 0, b: 0, alpha: 0,
+          },
+        },
+      })
+        .composite(result.map((r) => ({
+          input: r.pixels,
+          raw: {
+            channels: 4,
+            width: r.width,
+            height: r.height,
+          },
+          left: Math.round(resource.shapes[r.polygonIndex].minX - shapeRegion.minX),
+          top: Math.round(resource.shapes[r.polygonIndex].minY - shapeRegion.minY),
+        })))
+        .toBuffer();
+      await sharp(shape, {
+        raw: {
+          channels: 4,
+          width: shapeWidth,
+          height: shapeHeight,
+        },
+      })
+        .png()
+        .toFile(`out/shape${exportId}.png`);
+      resource.finalShape = {
+        pixels: shape,
+        width: shapeWidth,
+        height: shapeHeight,
+      };
+    }
+  }
+  // const result = await Promise.all(extractShapePromises);
+  // result.forEach((extractedShape) => {
+  //   if (extractedShape) {
+  //     resources[extractedShape.exportId].extractedShapes.push(extractedShape);
+  //   }
+  // });
+};
+
 module.exports = {
   readShape,
+  extractShapes,
 };
