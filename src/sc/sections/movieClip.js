@@ -104,58 +104,38 @@ const readMovieClip = (buffer) => {
   return movieClip;
 };
 
-const getTransformMatrix = (transformMatrices, index) => {
-  if (index === -1) {
-  // Identity matrix
-    return {
-      matrix: [1, 0, 0, 1],
-      odx: 0,
-      ody: 0,
-    };
-  }
-  return transformMatrices[index];
-};
-const getColorTransformation = (colorMatrices, index) => {
-  if (index === -1) {
-    return {
-      redMultiplier: 0xff,
-      greenMultiplier: 0xff,
-      blueMultiplier: 0xff,
-      alphaMultiplier: 0xff,
-      redAddition: 0,
-      greenAddition: 0,
-      blueAddition: 0,
-    };
-  }
-  return colorMatrices[index];
-};
+const getTransformMatrix = (transformMatrices, index) => (
+  index !== -1 ? transformMatrices[index] : null
+);
+
+const getColorTransformation = (colorMatrices, index) => (
+  index !== -1 ? colorMatrices[index] : null
+);
 
 const applyOperations = async (path, resource, transformation, colorTransformation) => {
   if (resource.type !== 'shape') {
     logger.debug(path, resource.type);
   } else {
-    const e = resource.finalShape;
-    const { pixels } = e;
+    if (colorTransformation !== null) {
+      imageUtils.applyColorTransformationMutable(resource.finalShape.pixels, colorTransformation);
+    }
+    let transformed = sharp(resource.finalShape.pixels, {
+      raw:
+      {
+        channels: 4,
+        width: resource.finalShape.width,
+        height: resource.finalShape.height,
+      },
+    });
 
-    for (let k = 0; k < pixels.length; k += 4) {
-      pixels[4 * k] = Math.floor(pixels[4 * k] * colorTransformation.redMultiplier / 255);
-      pixels[4 * k + 1] = Math.floor(pixels[4 * k + 1] * colorTransformation.greenMultiplier / 255);
-      pixels[4 * k + 2] = Math.floor(pixels[4 * k + 2] * colorTransformation.blueMultiplier / 255);
-      pixels[4 * k + 3] = Math.floor(pixels[4 * k + 3] * colorTransformation.alphaMultiplier / 255);
-      pixels[4 * k] = Math.min(255, pixels[4 * k] + colorTransformation.redAddition);
-      pixels[4 * k + 1] = Math.min(255, pixels[4 * k + 1] + colorTransformation.greenAddition);
-      pixels[4 * k + 2] = Math.min(255, pixels[4 * k + 2] + colorTransformation.blueAddition);
+    if (transformation) {
+      transformed = transformed.affine(transformation.matrix, {
+        background: '#00000000',
+        odx: transformation.odx,
+        ody: transformation.ody,
+      });
     }
 
-    const transformed = sharp(pixels, {
-      raw:
-        {
-          channels: 4,
-          width: e.width,
-          height: e.height,
-        },
-    })
-      .affine(transformation.matrix, { background: '#00000000', odx: transformation.odx, ody: transformation.ody });
     await imageUtils.saveSharp(`${path}`, transformed);
   }
 };
@@ -180,7 +160,12 @@ const createMovieClips = async (transformMatrices, colorMatrices, textures, reso
           );
 
           generateMovieClipsPromises.push(
-            applyOperations(`out/MovieClip${exportId}-frame${frameIndex}-frameResource${frameResourceIndex}`, resource, transformation, colorTransformation),
+            applyOperations(
+              `out/MovieClip${exportId}-frame${frameIndex}-frameResource${frameResourceIndex}`,
+              resource,
+              transformation,
+              colorTransformation,
+            ),
           );
         });
       });

@@ -121,6 +121,51 @@ const extractShapeAndResize = async (exportId, polygonIndex, shape, texture) => 
   };
 };
 
+const changePixelColor = (pixels, index, newColor) => {
+  // eslint-disable-next-line no-param-reassign
+  pixels[index] = newColor;
+};
+
+const applyColorTransformationMutable = (pixels, colorTransformation) => {
+  for (let k = 0; k < pixels.length; k += 4) {
+    changePixelColor(
+      pixels,
+      4 * k,
+      Math.floor(pixels[4 * k] * colorTransformation.redMultiplier / 255),
+    );
+    changePixelColor(
+      pixels,
+      4 * k + 1,
+      Math.floor(pixels[4 * k + 1] * colorTransformation.greenMultiplier / 255),
+    );
+    changePixelColor(
+      pixels,
+      4 * k + 2,
+      Math.floor(pixels[4 * k + 2] * colorTransformation.blueMultiplier / 255),
+    );
+    changePixelColor(
+      pixels,
+      4 * k + 3,
+      Math.floor(pixels[4 * k + 3] * colorTransformation.alphaMultiplier / 255),
+    );
+    changePixelColor(
+      pixels,
+      4 * k,
+      Math.min(255, pixels[4 * k] + colorTransformation.redAddition),
+    );
+    changePixelColor(
+      pixels,
+      4 * k + 1,
+      Math.min(255, pixels[4 * k + 1] + colorTransformation.greenAddition),
+    );
+    changePixelColor(
+      pixels,
+      4 * k + 2,
+      Math.min(255, pixels[4 * k + 2] + colorTransformation.blueAddition),
+    );
+  }
+};
+
 const createShapeWithColor = async (coordinates, color1, color2, tx, ty) => {
   const coordinatesRegion = {
     left: Math.min(...coordinates.map((p) => p[0])),
@@ -155,5 +200,6 @@ module.exports = {
   saveImageWithPolygon,
   extractShapeAndResize,
   createShapeWithColor,
+  applyColorTransformationMutable,
   saveSharp,
 };
