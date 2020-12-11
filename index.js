@@ -4,6 +4,7 @@ const { readScFile, readOldScFile } = require('./src/sc/scFormat');
 
 const main = async () => {
   fs.rmdirSync('out', { recursive: true });
+  fs.mkdirSync('out');
   // const scFiles = fs.readdirSync('sc');
   // scFiles.forEach((scFile) => {
   //   if (!scFile.endsWith('_tex.sc')) {
@@ -15,10 +16,10 @@ const main = async () => {
   // readScFile('characters');
   // readScFile('supercell_id'); // lots of gradients
   // readScFile('loading');
-  readScFile('level');
+  // readScFile('level');
   // readScFile('ui');
   // readScFile('debug');
-  // readScFile('background_basic');
+  readScFile('background_basic');
   // readScFile('background_snowtel');
   // readOldScFile('overlay');
 

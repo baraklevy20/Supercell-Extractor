@@ -65,7 +65,7 @@ const getRegion = (coordinates) => {
 
 const readShape = (buffer, textures) => {
   const exportId = buffer.readInt16LE();
-  // logger.debug(`Shape exportID: ${exportId}`);
+  logger.debug(`Shape exportID: ${exportId}`);
 
   const numberOfPolygons = buffer.readUInt16LE();
   const totalNumberOfVertices = buffer.readUInt16LE();
@@ -264,6 +264,7 @@ const extractShapes = async (filename, textures, resources) => {
   logger.info('Extracting shapes');
   const extractShapePromises = [];
   Object.keys(resources).forEach((exportId) => {
+  // const exportId = 821;
     const resource = resources[exportId];
 
     if (resource.type === 'shape') {

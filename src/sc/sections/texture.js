@@ -4,20 +4,19 @@ const readPixel = (buffer, pixelFormat) => {
   switch (pixelFormat) {
     // RGB8888
     case 0x00: {
-      return buffer.readUInt32BE();
+      const value = buffer.readUInt32BE();
+      return [(value >> 24) & 255, (value >> 16) & 255, (value >> 8) & 255, value & 255];
     }
     // LA88
     case 0x06: {
       const color = buffer.readUInt8();
       const alpha = buffer.readUInt8();
-      return ((color << 24) + (color << 16) + (color << 8) + alpha) >>> 0;
+      return [color, color, color, alpha];
     }
     // RGB565
     case 0x04: {
       const value = buffer.readUInt16BE();
-      return (
-        (((value >> 11) << (27 + ((value >> 5) & 0x1f))) << (19 + value)) << (11 + 0xff)
-      );
+      return [value >> 11, (value >> 5) & 0xff, value & 0xff, 0xff];
     }
     default: {
       throw Error('Unsupported pixel format');
@@ -40,7 +39,7 @@ const readTextures = (scFileName, buffer) => {
     const pixelFormat = buffer.readUInt8();
     const width = buffer.readUInt16LE();
     const height = buffer.readUInt16LE();
-    const pixels = new Array(width * height);
+    const pixels = new Array(width * height * 4);
 
     if (layoutType === 0x1c) {
       const blockSize = 32;
@@ -58,14 +57,19 @@ const readTextures = (scFileName, buffer) => {
               const pixelColumn = currentBlockStartColumn + j;
               const pixel = readPixel(buffer, pixelFormat);
 
-              pixels[pixelRow * width + pixelColumn] = pixel;
+              [
+                pixels[4 * (pixelRow * width + pixelColumn)],
+                pixels[4 * (pixelRow * width + pixelColumn) + 1],
+                pixels[4 * (pixelRow * width + pixelColumn) + 2],
+                pixels[4 * (pixelRow * width + pixelColumn) + 3]] = pixel;
             }
           }
         }
       }
     } else if (layoutType === 0x01) {
       for (let i = 0; i < width * height; i += 1) {
-        pixels[i] = (readPixel(buffer, pixelFormat));
+        const pixel = readPixel(buffer, pixelFormat);
+        [pixels[4 * i], pixels[4 * i + 1], pixels[4 * i + 2], pixels[4 * i + 3]] = pixel;
       }
     }
 

@@ -3,28 +3,19 @@ const sharp = require('sharp');
 
 // todo remove entire file, it's useless
 const saveImage = (path, width, height, pixels) => {
-  let k = 0;
-  const image = new Jimp(width, height);
-  for (let i = 0; i < height; i += 1) {
-    for (let j = 0; j < width; j += 1) {
-      image.setPixelColor(pixels[k], j, i);
-      k += 1;
-    }
-  }
-  image.write(path, (err) => {
-    if (err) throw err;
-  });
+  sharp(Buffer.from(pixels), {
+    raw: {
+      channels: 4,
+      width,
+      height,
+    },
+  }).toFile(path);
 };
 
 const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
   const polygonString = polygon.textureCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0]},${vertex[1]}`, '');
-  const newPixels = [];
-  for (let k = 0; k < texture.pixels.length; k += 1) {
-    const c = texture.pixels[k];
-    newPixels.push(...[(c >> 24) & 255, (c >> 16) & 255, (c >> 8) & 255, c & 255]);
-  }
 
-  const maskedImage = await sharp(Buffer.from(newPixels), {
+  const maskedImage = await sharp(Buffer.from(texture.pixels), {
     raw:
         {
           channels: 4,
@@ -92,11 +83,6 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
     width: scaleWidth,
     height: scaleHeight,
   };
-};
-
-const changePixelColor = (pixels, index, newColor) => {
-  // eslint-disable-next-line no-param-reassign
-  pixels[index] = newColor;
 };
 
 const applyColorTransformation = (pixels, colorTransformation) => {

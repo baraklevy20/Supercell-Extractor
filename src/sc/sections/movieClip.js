@@ -5,13 +5,13 @@ const logger = require('../../../logger');
 
 const readMovieClip = (buffer) => {
   const exportId = buffer.readUInt16LE();
-  logger.debug(`MovieClip exportId: ${exportId}`);
+  // logger.debug(`MovieClip exportId: ${exportId}`);
   if (exportId === 15) {
     logger.debug('working');
   }
 
   const frameRate = buffer.readUInt8();
-  const framesCount = buffer.readUInt16LE();
+  const frameCount = buffer.readUInt16LE();
   const frameResourcesCount = buffer.readUInt32LE();
   const frameResources = [];
 
@@ -105,6 +105,7 @@ const readMovieClip = (buffer) => {
     frames,
     frameRate,
     resourcesMapping,
+    frameCount,
   };
 
   return movieClip;
@@ -255,11 +256,24 @@ const compositeFrame = async (frame, resources, shapes, transformMatrices, color
       });
     }
   }
+
   // todo again, remove this eventually. shouldn't happen
   if (currentFrameComposite.length > 0) {
-    return sharp(currentFrameComposite[0].input, {
-      raw: currentFrameComposite[0].raw,
-    }).composite(currentFrameComposite.slice(1));
+    const maxWidth = Math.max(...currentFrameComposite.map((f) => f.raw.width));
+    const maxHeight = Math.max(...currentFrameComposite.map((f) => f.raw.height));
+
+    return sharp({
+      create: {
+        channels: 4,
+        width: maxWidth,
+        height: maxHeight,
+        background: '#00000000',
+      },
+    }).composite(currentFrameComposite.map((c) => ({
+      ...c,
+      left: Math.floor((maxWidth - c.raw.width) / 2),
+      top: Math.floor((maxHeight - c.raw.height) / 2),
+    })));
   }
 };
 
@@ -332,7 +346,7 @@ const createMovieClips = async (filename, transformMatrices, colorMatrices, text
           await strip.png().toFile('banana.png');
         }
 
-        strip.webp({ pageHeight, loop: 0, lossless: true }).toFile(`out/${filename}-movieclip${exportId}.webp`);
+        strip.webp({ pageHeight, loop: 0, lossless: true }).toFile(`out/${filename}-movieclip${exportId}-${movieClip.frameCount}.webp`);
       }
     }
   }
