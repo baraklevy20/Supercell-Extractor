@@ -218,8 +218,8 @@ const extractShape = async (filename, resource, textures) => {
   });
 
   const result = await Promise.all(extractPolygonPromises);
-  const shapeWidth = shapeRegion.maxX - shapeRegion.minX + 1;
-  const shapeHeight = shapeRegion.maxY - shapeRegion.minY + 1;
+  const shapeWidth = shapeRegion.maxX - shapeRegion.minX;
+  const shapeHeight = shapeRegion.maxY - shapeRegion.minY;
 
   const shape = await sharp({
     create: {

@@ -99,44 +99,19 @@ const changePixelColor = (pixels, index, newColor) => {
   pixels[index] = newColor;
 };
 
-const applyColorTransformationMutable = (pixels, colorTransformation) => {
-  for (let k = 0; k < pixels.length; k += 4) {
-    changePixelColor(
-      pixels,
-      4 * k,
-      Math.floor(pixels[4 * k] * colorTransformation.redMultiplier / 255),
-    );
-    changePixelColor(
-      pixels,
-      4 * k + 1,
-      Math.floor(pixels[4 * k + 1] * colorTransformation.greenMultiplier / 255),
-    );
-    changePixelColor(
-      pixels,
-      4 * k + 2,
-      Math.floor(pixels[4 * k + 2] * colorTransformation.blueMultiplier / 255),
-    );
-    changePixelColor(
-      pixels,
-      4 * k + 3,
-      Math.floor(pixels[4 * k + 3] * colorTransformation.alphaMultiplier / 255),
-    );
-    changePixelColor(
-      pixels,
-      4 * k,
-      Math.min(255, pixels[4 * k] + colorTransformation.redAddition),
-    );
-    changePixelColor(
-      pixels,
-      4 * k + 1,
-      Math.min(255, pixels[4 * k + 1] + colorTransformation.greenAddition),
-    );
-    changePixelColor(
-      pixels,
-      4 * k + 2,
-      Math.min(255, pixels[4 * k + 2] + colorTransformation.blueAddition),
-    );
+const applyColorTransformation = (pixels, colorTransformation) => {
+  const newPixels = new Array(pixels.length);
+  for (let k = 0; k < pixels.length / 4; k += 1) {
+    newPixels[4 * k] = Math.floor(pixels[4 * k] * colorTransformation.redMultiplier / 255);
+    newPixels[4 * k + 1] = Math.floor(pixels[4 * k + 1] * colorTransformation.greenMultiplier / 255);
+    newPixels[4 * k + 2] = Math.floor(pixels[4 * k + 2] * colorTransformation.blueMultiplier / 255);
+    newPixels[4 * k + 3] = Math.floor(pixels[4 * k + 3] * colorTransformation.alphaMultiplier / 255);
+    newPixels[4 * k] = Math.min(255, pixels[4 * k] + colorTransformation.redAddition);
+    newPixels[4 * k + 1] = Math.min(255, pixels[4 * k + 1] + colorTransformation.greenAddition);
+    newPixels[4 * k + 2] = Math.min(255, pixels[4 * k + 2] + colorTransformation.blueAddition);
   }
+
+  return Buffer.from(newPixels);
 };
 
 const createShapeWithColor = async (outputCoordinates, color1, color2, tx, ty) => {
@@ -168,5 +143,5 @@ module.exports = {
   saveImage,
   extractPolygon,
   createShapeWithColor,
-  applyColorTransformationMutable,
+  applyColorTransformation,
 };

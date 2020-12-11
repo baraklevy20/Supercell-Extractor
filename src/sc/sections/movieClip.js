@@ -6,8 +6,8 @@ const logger = require('../../../logger');
 const readMovieClip = (buffer) => {
   const exportId = buffer.readUInt16LE();
   logger.debug(`MovieClip exportId: ${exportId}`);
-  if (exportId === 3476) {
-    // logger.debug('working');
+  if (exportId === 15) {
+    logger.debug('working');
   }
 
   const frameRate = buffer.readUInt8();
@@ -24,7 +24,9 @@ const readMovieClip = (buffer) => {
       transformMatrixIndex: buffer.readInt16LE(),
       colorTransformIndex: buffer.readInt16LE(),
     });
-    logger.debug(JSON.stringify(frameResources[i]));
+    if (exportId === 282 || exportId === 280) {
+      // logger.debug(JSON.stringify(frameResources[i]));
+    }
   }
 
   const numberOfResources = buffer.readUInt16LE();
@@ -35,7 +37,9 @@ const readMovieClip = (buffer) => {
   for (let i = 0; i < numberOfResources; i += 1) {
     // this might be the delay between each frame? just an idea, no basis behind it
     const num = buffer.readUInt8();
-    // logger.debug(`number uint8: ${num}`);
+    if (exportId === 282 || exportId === 280) {
+      logger.debug(`number uint8: ${num}`);
+    }
   }
 
   for (let i = 0; i < numberOfResources; i += 1) {
@@ -114,14 +118,18 @@ const getColorTransformation = (colorMatrices, index) => (
   index !== -1 ? colorMatrices[index] : null
 );
 
-const applyOperations = (path, resource, transformation, colorTransformation) => {
+const applyOperations = async (resource, transformation, colorTransformation) => {
   if (resource.type !== 'shape') {
     // logger.debug(path, resource.type);
   } else {
+    let colorTransformedPixels = resource.pixels;
     if (colorTransformation !== null) {
-      imageUtils.applyColorTransformationMutable(resource.pixels, colorTransformation);
+      colorTransformedPixels = imageUtils.applyColorTransformation(
+        resource.pixels,
+        colorTransformation,
+      );
     }
-    let transformed = sharp(resource.pixels, {
+    let transformed = sharp(colorTransformedPixels, {
       raw:
       {
         channels: 4,
@@ -138,7 +146,7 @@ const applyOperations = (path, resource, transformation, colorTransformation) =>
       });
     }
 
-    return transformed;
+    return transformed.toBuffer({ resolveWithObject: true });
 
     // await imageUtils.saveMovieClip(`${path}`, transformed);
   }
@@ -152,97 +160,182 @@ const getResourceByExportId = (resources, shapes, exportId) => {
   return resources[exportId];
 };
 
+const readFrameResource = (resources, shapes, transformMatrices, colorMatrices, movieClip, frameResource) => {
+  const resource = getResourceByExportId(
+    resources,
+    shapes,
+    movieClip.resourcesMapping[frameResource.resourceIndex],
+  );
+  const transformation = getTransformMatrix(
+    transformMatrices,
+    frameResource.transformMatrixIndex,
+  );
+  const colorTransformation = getColorTransformation(
+    colorMatrices,
+    frameResource.colorTransformIndex,
+  );
+
+  return applyOperations(
+    resource,
+    transformation,
+    colorTransformation,
+  );
+};
+
+const compositeFrame = async (frame, resources, shapes, transformMatrices, colorMatrices, movieClip) => {
+  // const blendTypes = ['clear', 'source', 'over', 'in', 'out', 'atop', 'dest', 'dest-over', 'dest-in', 'dest-out', 'dest-atop', 'xor', 'add', 'saturate', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'colour-dodge', 'color-dodge', 'colour-burn', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion'];
+  // for (let j = 0; j < blendTypes.length; j += 1) {
+  //   const currentFrameComposite = [];
+  //   for (let i = 0; i < frame.frameResources.length; i += 1) {
+  //     const frameResourceImage = await readFrameResource(resources, shapes, transformMatrices, colorMatrices, movieClip, frame.frameResources[i]);
+
+  //     // todo eventually readFrameResource should always return.
+  //     // right now it only supports sprites so it doesn't always return a frame resource
+  //     if (frameResourceImage) {
+  //       currentFrameComposite.push({
+  //         input: frameResourceImage.data,
+  //         raw: {
+  //           width: frameResourceImage.info.width,
+  //           height: frameResourceImage.info.height,
+  //           channels: 4,
+  //         },
+  //         blend: blendTypes[j],
+  //       });
+  //     }
+  //   }
+  //   // todo again, remove this eventually. shouldn't happen
+  //   // if (currentFrameComposite.length > 0) {
+  //   //   return sharp(currentFrameComposite[0].input, {
+  //   //     raw: currentFrameComposite[0].raw,
+  //   //   }).composite(currentFrameComposite.slice(1));
+  //   // }
+
+  //   sharp({
+  //     create: {
+  //       channels: 4,
+  //       width: currentFrameComposite[0].raw.width,
+  //       height: currentFrameComposite[0].raw.height,
+  //       background: '#00000000',
+  //     },
+  //   }).composite([currentFrameComposite[1], currentFrameComposite[0]]).toFile(`four/four-${blendTypes[j]}.png`);
+
+  //   sharp({
+  //     create: {
+  //       channels: 4,
+  //       width: currentFrameComposite[0].raw.width,
+  //       height: currentFrameComposite[0].raw.height,
+  //       background: '#00000000',
+  //     },
+  //   }).composite([currentFrameComposite[0], currentFrameComposite[1]]).toFile(`four/three-${blendTypes[j]}.png`);
+
+  //   sharp(currentFrameComposite[1].input, {
+  //     raw: currentFrameComposite[1].raw,
+  //   }).composite([currentFrameComposite[0]]).toFile(`four/two-${blendTypes[j]}.png`);
+  //   sharp(currentFrameComposite[0].input, {
+  //     raw: currentFrameComposite[0].raw,
+  //   }).composite([currentFrameComposite[1]]).toFile(`four/one-${blendTypes[j]}.png`);
+  // }
+
+  const currentFrameComposite = [];
+  const blendType = 'over';
+  for (let i = 0; i < frame.frameResources.length; i += 1) {
+    const frameResourceImage = await readFrameResource(resources, shapes, transformMatrices, colorMatrices, movieClip, frame.frameResources[i]);
+
+    // todo eventually readFrameResource should always return.
+    // right now it only supports sprites so it doesn't always return a frame resource
+    if (frameResourceImage) {
+      currentFrameComposite.push({
+        input: frameResourceImage.data,
+        raw: {
+          width: frameResourceImage.info.width,
+          height: frameResourceImage.info.height,
+          channels: 4,
+        },
+        blend: blendType,
+      });
+    }
+  }
+  // todo again, remove this eventually. shouldn't happen
+  if (currentFrameComposite.length > 0) {
+    return sharp(currentFrameComposite[0].input, {
+      raw: currentFrameComposite[0].raw,
+    }).composite(currentFrameComposite.slice(1));
+  }
+};
+
 const createMovieClips = async (filename, transformMatrices, colorMatrices, textures, resources) => {
   const shapes = await shapeSection.extractShapes(filename, textures, resources);
   logger.info('Extracting movie clips');
   // eventually i'll split resources into text fields and movie clips as well
   const generateMovieClipsPromises = [];
-  Object.keys(resources).forEach(async (exportId) => {
-    // exportId = 16;
+  for (let r = 0; r < Object.keys(resources).length; r++) {
+    // const exportId = 26;
+    const exportId = Object.keys(resources)[r];
     const movieClip = getResourceByExportId(resources, shapes, exportId);
 
     if (movieClip.type === 'movieClip') {
       const currentMovieClipFinalFrames = [];
-      movieClip.frames.forEach((frame, frameIndex) => {
-        frame.frameResources.forEach((frameResource, frameResourceIndex) => {
-          const resource = getResourceByExportId(
-            resources,
-            shapes,
-            movieClip.resourcesMapping[frameResource.resourceIndex],
-          );
-          const transformation = getTransformMatrix(
-            transformMatrices,
-            frameResource.transformMatrixIndex,
-          );
-          const colorTransformation = getColorTransformation(
-            colorMatrices,
-            frameResource.colorTransformIndex,
-          );
+      for (let i = 0; i < movieClip.frames.length; i += 1) {
+        const compositedFrame = await compositeFrame(movieClip.frames[i], resources, shapes, transformMatrices, colorMatrices, movieClip);
 
-          const finalFrame = applyOperations(
-            `out/${filename}-movieclip${exportId}-frame${frameIndex}-frameResource${frameResourceIndex}`,
-            resource,
-            transformation,
-            colorTransformation,
-          );
-
-          if (finalFrame) {
-            currentMovieClipFinalFrames.push(finalFrame);
-          }
-        });
-      });
-
-      console.log('object');
-
-      // const resizedImages = [];
-      const widths = [];
-      const heights = [];
-      const buffers = [];
-
-      for (let i = 0; i < currentMovieClipFinalFrames.length; i += 1) {
-        const result = await currentMovieClipFinalFrames[i].toBuffer({ resolveWithObject: true });
-        widths.push(result.info.width);
-        heights.push(result.info.height);
-        buffers.push(result.data);
+        if (compositedFrame) {
+          currentMovieClipFinalFrames.push(compositedFrame);
+        }
       }
 
-      const maxWidth = Math.max(...widths);
-      const pageHeight = Math.max(...heights);
-      const imageComposites = [];
+      // todo remove. this should never happen once you finish
+      // it currently only happens because i'm skipping text fields and movie clips in compositeFrame
+      if (currentMovieClipFinalFrames.length > 0) {
+        const widths = [];
+        const heights = [];
+        const buffers = [];
 
-      // todo remove composite, it's very slow.
-      // use direct pixel access to generate the strip
-      for (let i = 0; i < currentMovieClipFinalFrames.length; i += 1) {
-        // Generate composite object
-        imageComposites.push({
-          input: buffers[i],
-          raw: {
-            width: widths[i],
-            height: heights[i],
+        for (let i = 0; i < currentMovieClipFinalFrames.length; i += 1) {
+          const result = await currentMovieClipFinalFrames[i].toBuffer({ resolveWithObject: true });
+          widths.push(result.info.width);
+          heights.push(result.info.height);
+          buffers.push(result.data);
+        }
+
+        const maxWidth = Math.max(...widths);
+        const pageHeight = Math.max(...heights);
+        const imageComposites = [];
+
+        // todo remove composite, it's very slow.
+        // use direct pixel access to generate the strip
+        for (let i = 0; i < currentMovieClipFinalFrames.length; i += 1) {
+          // Generate composite object
+          imageComposites.push({
+            input: buffers[i],
+            raw: {
+              width: widths[i],
+              height: heights[i],
+              channels: 4,
+            },
+            top: i * pageHeight + Math.floor((pageHeight - heights[i]) / 2),
+            left: Math.floor((maxWidth - widths[i]) / 2),
+          });
+        }
+
+        console.log([exportId, maxWidth, pageHeight, buffers.length, widths, heights]);
+        const strip = sharp({
+          create: {
+            width: maxWidth,
+            height: pageHeight * buffers.length,
             channels: 4,
+            background: '#00000000',
           },
-          top: i * pageHeight + Math.floor((pageHeight - heights[i]) / 2),
-          left: Math.floor((maxWidth - widths[i]) / 2),
-        });
+        })
+          .composite(imageComposites);
+
+        if (movieClip.exportId === 16) {
+          await strip.png().toFile('banana.png');
+        }
+
+        strip.webp({ pageHeight, loop: 0, lossless: true }).toFile(`out/${filename}-movieclip${exportId}.webp`);
       }
-
-      const strip = sharp({
-        create: {
-          width: maxWidth,
-          height: pageHeight * buffers.length,
-          channels: 4,
-          background: '#00000000',
-        },
-      })
-        .composite(imageComposites);
-
-      if (movieClip.exportId === 16) {
-        await strip.png().toFile('banana.png');
-      }
-
-      strip.webp({ pageHeight, loop: 0 }).toFile(`out/${filename}-movieclip${exportId}.webp`);
     }
-  });
+  }
 
   await Promise.all(generateMovieClipsPromises);
   logger.info('Finished extracting movie clips');
