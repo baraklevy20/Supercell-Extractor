@@ -6,7 +6,7 @@ const logger = require('../../../logger');
 const readMovieClip = (buffer) => {
   const exportId = buffer.readUInt16LE();
   // logger.debug(`MovieClip exportId: ${exportId}`);
-  if (exportId === 5) {
+  if (exportId === 825) {
     logger.debug('working');
   }
 
@@ -34,11 +34,14 @@ const readMovieClip = (buffer) => {
   for (let i = 0; i < numberOfResources; i += 1) {
     resourcesMapping.push(buffer.readInt16LE());
   }
+  // still no idea what this is, but it uses this mapping
+  // i'm pretty sure it might be a bit field (values are 000, 001, 010, 011, 100)
+  // i took 3 values because the game stores it in 3 bits
+  const uint8Mapping = [0, 0, 0, 0x80, 0xC0, 0, 0, 0, 0x40, 0, 0, 0, 0x100];
   for (let i = 0; i < numberOfResources; i += 1) {
-    // this might be the delay between each frame? just an idea, no basis behind it
     const num = buffer.readUInt8();
-    if (exportId === 282 || exportId === 280) {
-      logger.debug(`number uint8: ${num}`);
+    if (num !== 0) {
+      logger.debug(`${resourcesMapping[frameResources[i].resourceIndex]} number uint8: ${uint8Mapping[num]}`);
     }
   }
 
