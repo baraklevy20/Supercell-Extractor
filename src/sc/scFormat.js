@@ -153,15 +153,16 @@ const getOldScBuffer = async (scFileName) => {
   return buffer.scOldDecompress();
 };
 
-const readScFile = async (scFileName) => {
-  const textures = textureSection.readTextures(scFileName, await getScBuffer(`${scFileName}_tex`));
-  const scFileContent = readNormalScFile(scFileName, await getScBuffer(scFileName), textures);
+const readScFile = async (fileName) => {
+  const textures = textureSection.readTextures(fileName, await getScBuffer(`${fileName}_tex`));
+  const scFileContent = readNormalScFile(fileName, await getScBuffer(fileName), textures);
+  const shapes = await shapeSection.extractShapes(fileName, textures, scFileContent.resources);
   await movieClipSection.createMovieClips(
-    scFileName,
+    fileName,
     scFileContent.transformMatrices,
     scFileContent.colorMatrices,
-    textures,
     scFileContent.resources,
+    shapes,
   );
 };
 

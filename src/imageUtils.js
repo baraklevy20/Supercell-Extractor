@@ -39,6 +39,7 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
   region.width = Math.max(...polygon.textureCoordinates.map((p) => p[0])) - region.left;
   region.height = Math.max(...polygon.textureCoordinates.map((p) => p[1])) - region.top;
 
+  // todo a faster way would be to first crop to the region size and then use a mask
   const extractedShape = await sharp(maskedImage, {
     raw:
     {
