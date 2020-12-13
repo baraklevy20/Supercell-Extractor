@@ -4,32 +4,32 @@ const readTextField = (buffer, blockType) => {
   const exportId = buffer.readInt16LE();
   // logger.info(`TextField exportID: ${exportId}`);
   const text = buffer.scReadString();
-  const v60 = buffer.readInt32LE();
-  const c1 = buffer.readUInt8(); // maybe text modifier - 0 or 1
-  const c2 = buffer.readUInt8(); // maybe text modifier - 0 or 1
-  const c3 = buffer.readUInt8(); // maybe text modifier - 0 or 1
+  const textColor = buffer.readInt32LE(); // in ARGB
+  const flag1 = buffer.readUInt8(); // maybe text modifier - 0 or 1
+  const flag2 = buffer.readUInt8(); // maybe text modifier - 0 or 1
+  const flag3 = buffer.readUInt8(); // maybe text modifier - 0 or 1
   const c4 = buffer.readUInt8(); // not sure if used
-  const c5 = buffer.readUInt8();
-  const c6 = buffer.readUInt8();
-  const c7 = buffer.readInt16LE();
-  const c8 = buffer.readInt16LE();
-  const c9 = buffer.readInt16LE();
-  const c10 = buffer.readInt16LE();
-  const c11 = buffer.readUInt8(); // maybe text modifier - 0 or 1
+  const c5 = buffer.readUInt8(); // if 2 => multiply by 2. otherwise, reduce by 3
+  const c6 = buffer.readUInt8(); // something is multiplied by this
+  const transform0 = buffer.readInt16LE();
+  const transform1 = buffer.readInt16LE();
+  const transform2 = buffer.readInt16LE();
+  const transform3 = buffer.readInt16LE();
+  const flag4 = buffer.readUInt8(); // maybe text modifier - 0 or 1
   const text2 = buffer.scReadString();
 
-  let c12;
-  let c13;
+  let flag5;
+  let anotherColor;
   let c14;
   let c15;
 
   if (blockType !== 0x07) {
-    c12 = buffer.readUInt8(); // maybe text modifier - 0 or 1
+    flag5 = buffer.readUInt8(); // maybe text modifier - 0 or 1
 
     if (blockType === 0x15) {
-      c13 = buffer.readUInt32LE();
+      anotherColor = buffer.readUInt32LE();
     } else if (blockType === 0x21) {
-      c13 = buffer.readUInt32LE();
+      anotherColor = buffer.readUInt32LE();
       c14 = buffer.readInt16LE();
       c15 = buffer.readInt16LE();
     } else if (blockType === 0x2c) {
@@ -42,24 +42,25 @@ const readTextField = (buffer, blockType) => {
     type: 'textField',
     text,
     text2,
-    v60,
-    c1,
-    c2,
-    c3,
+    textColor,
+    flag1,
+    flag2,
+    flag3,
     c4,
     c5,
     c6,
-    c7,
-    c8,
-    c9,
-    c10,
-    c11,
-    c12,
-    c13,
+    transform0,
+    transform1,
+    transform2,
+    transform3,
+    flag4,
+    flag5,
+    anotherColor,
     c14,
     c15,
   };
 
+  logger.debug(textField);
   return textField;
 
   // logger.info('TextField: ', textField);
