@@ -25,7 +25,7 @@ const readMovieClip = (buffer) => {
       colorTransformIndex: buffer.readInt16LE(),
     });
     if (exportId === 282 || exportId === 280) {
-      // logger.debug(JSON.stringify(frameResources[i]));
+      // logger.debug(frameResources[i]);
     }
   }
 
