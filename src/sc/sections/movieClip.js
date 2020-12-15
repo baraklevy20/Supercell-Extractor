@@ -1,6 +1,6 @@
 const sharp = require('sharp');
+const stream = require('stream');
 const imageUtils = require('../../imageUtils');
-const shapeSection = require('./shape');
 const logger = require('../../../logger');
 
 const readMovieClip = (buffer) => {
@@ -316,13 +316,11 @@ const compositeFrame = async (frame, resources, shapes, transformMatrices, color
   }
 };
 
-const createFramesStrip = (frames, maxWidth, pageHeight) => {
-  const stripBuffer = new Array(frames.length * maxWidth * pageHeight * 4).fill(0);
-
-  // todo consider using destBuf.write(srcBuf.read) and see if it's faster than random access
-  frames.forEach((frame, frameIndex) => {
+const pushIntoStripStream = (stripStream, frames, maxWidth, pageHeight) => {
+  frames.forEach((frame) => {
+    const stripBuffer = new Array(maxWidth * pageHeight * 4).fill(0);
     const left = Math.floor((maxWidth - frame.width) / 2);
-    const top = frameIndex * pageHeight + Math.floor((pageHeight - frame.height) / 2);
+    const top = Math.floor((pageHeight - frame.height) / 2);
     for (let i = 0; i < frame.height; i += 1) {
       for (let j = 0; j < frame.width; j += 1) {
         const x = left + j;
@@ -333,9 +331,11 @@ const createFramesStrip = (frames, maxWidth, pageHeight) => {
         stripBuffer[(y * maxWidth + x) * 4 + 3] = frame.pixels[(i * frame.width + j) * 4 + 3];
       }
     }
+
+    stripStream.push(Buffer.from(stripBuffer));
   });
 
-  return Buffer.from(stripBuffer);
+  stripStream.push(null);
 };
 
 const createMovieClips = async (filename, transformMatrices, colorMatrices, resources, shapes) => {
@@ -363,14 +363,24 @@ const createMovieClips = async (filename, transformMatrices, colorMatrices, reso
       if (currentMovieClipFinalFrames.length > 0) {
         const maxWidth = Math.max(...currentMovieClipFinalFrames.map((f) => f.width));
         const pageHeight = Math.max(...currentMovieClipFinalFrames.map((f) => f.height));
-        const framesStrip = createFramesStrip(currentMovieClipFinalFrames, maxWidth, pageHeight);
-        sharp(framesStrip, {
+        const stripStream = new stream.Readable();
+        const sharpStream = sharp({
           raw: {
             channels: 4,
             width: maxWidth,
             height: pageHeight * currentMovieClipFinalFrames.length,
           },
-        }).webp({ pageHeight, loop: 0, lossless: true }).toFile(`out/${filename}-movieclip${exportId}-${movieClip.frameCount}.webp`);
+        })
+          .webp({ pageHeight, loop: 0, lossless: true })
+          .on('data', (c) => {
+            console.log('got image page');
+          });
+
+        stripStream.pipe(sharpStream);
+        pushIntoStripStream(stripStream, currentMovieClipFinalFrames, maxWidth, pageHeight);
+        generateMovieClipsPromises.push(sharpStream
+          .clone()
+          .toFile(`out/${filename}-movieclip${exportId}-${movieClip.frameCount}.webp`));
       }
     }
   }
