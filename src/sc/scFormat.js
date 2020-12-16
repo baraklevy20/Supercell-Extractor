@@ -44,35 +44,34 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
 
   for (let i = 0; i < numberOfExports; i += 1) {
     const exportName = buffer.scReadString();
-    logger.debug(`${exportsIds[i].toString()} - ${exportName}`);
+    // logger.debug(`${exportsIds[i].toString()} - ${exportName}`);
     exports[exportsIds[i]] = exportName;
   }
 
-  // some block?
-  if (!isOld) {
-    const uselessBlock = buffer.readUInt8();
-    if (uselessBlock === 0x17) {
-      buffer.readBuffer(0x13);
-    } else if (uselessBlock === 0x1a) {
-      buffer.readBuffer(0xe);
-    }
-  }
-
-  let blockSize;
+  let blockType;
   let i = 0;
-  while (blockSize !== 0) {
-    const blockType = buffer.readUInt8();
-    blockSize = buffer.readUInt32LE();
 
-    if (blockSize === 0) {
+  // A flag used to indicate if the current sc file has a corresponding _tex file
+  let hasTexFile = false;
+
+  // A flag used to indicate if the current file contains debug info. Not used in the extractor
+  let isDebugFile = false;
+  while (blockType !== 0) {
+    blockType = buffer.readUInt8();
+    const blockSize = buffer.readUInt32LE();
+
+    if (blockType === 0) {
       break;
     }
 
-    // if (i === 1) {
-    //   break;
-    // }
-
     switch (blockType) {
+      case 0x17:
+        hasTexFile = true;
+        break;
+      case 0x1a:
+        // eslint-disable-next-line no-unused-vars
+        isDebugFile = true;
+        break;
       case 0x07:
       case 0x0f:
       case 0x14:
@@ -82,19 +81,19 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
       case 0x2c:
         textFieldsCount += 1;
         if (textFieldsCount > totalTextFields) {
-          logger.error('Reading too many text fields');
+          logger.error(`${filename} - Reading too many text fields`);
         }
         addResource(resources, textFieldSection.readTextField(buffer, blockType));
         break;
       case 0x08:
         if (transformMatrices.length >= totalTransformMatrices) {
-          logger.error('Reading too many transform matrices');
+          logger.error(`${filename} - Reading too many transform matrices`);
         }
         transformMatrices.push(transformMatrixSection.readTransformMatrix(buffer));
         break;
       case 0x09:
         if (colorTransforms.length >= totalColorTransforms) {
-          logger.error('Reading too many color transforms');
+          logger.error(`${filename}- Reading too many color transforms`);
         }
         colorTransforms.push(colorVariationSection.readColorTransform(buffer));
         break;
@@ -105,7 +104,7 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
       case 0x23:
         movieClipsCount += 1;
         if (movieClipsCount > totalMovieClips) {
-          logger.error('Reading too many movie clips');
+          logger.error(`${filename} - Reading too many movie clips`);
         }
         addResource(resources, movieClipSection.readMovieClip(buffer));
         break;
@@ -113,7 +112,7 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
       case 0x12:
         shapesCount += 1;
         if (shapesCount > totalShapes) {
-          logger.error('Reading too many shapes');
+          logger.error(`${filename} - Reading too many shapes`);
         }
         if (isOld) {
           buffer.readBuffer(blockSize);
