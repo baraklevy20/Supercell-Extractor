@@ -41,7 +41,7 @@ const readMovieClip = (buffer) => {
   for (let i = 0; i < numberOfResources; i += 1) {
     const num = buffer.readUInt8();
     if (num !== 0) {
-      logger.debug(`${resourcesMapping[frameResources[i].resourceIndex]} number uint8: ${uint8Mapping[num]}`);
+      // logger.debug(`${resourcesMapping[frameResources[i].resourceIndex]} number uint8: ${uint8Mapping[num]}`);
     }
   }
 
@@ -141,8 +141,10 @@ const applyTransforms = async (resource, transformation, colorTransformation) =>
 
   if (transformation) {
     const extended = await transformed.extend({
-      top: transformation.ody > 0 ? Math.ceil(transformation.ody) : 0,
-      bottom: transformation.ody < 0 ? Math.ceil(-transformation.ody) : 0,
+      top: 0,
+      bottom: 0,
+      // top: transformation.ody > 0 ? Math.ceil(transformation.ody) : 0,
+      // bottom: transformation.ody < 0 ? Math.ceil(-transformation.ody) : 0,
       left: 0,
       right: 0,
       // left: transformation.odx < 0 ? Math.ceil(-transformation.odx) : 0,
@@ -370,6 +372,7 @@ const createMovieClips = async (filename, transformMatrices, colorMatrices, reso
             width: maxWidth,
             height: pageHeight * currentMovieClipFinalFrames.length,
           },
+          limitInputPixels: false,
         })
           .webp({ pageHeight, loop: 0, lossless: true })
           .on('data', (c) => {
