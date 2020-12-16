@@ -153,11 +153,11 @@ const extractColor = async (exportId, polygonIndex, polygon, textures, tx, ty) =
   if (polygonIndex === 3) {
     // logger.debug('what');
   }
-  // todo sometimes textureCoordinates[0] = textureCoordinates[2] and
-  // textureCoordinates[1]=textureCoordinates[3] wtf
+  const isHorizontalGradient = polygon.textureCoordinates[0][0] !== polygon.textureCoordinates[1][0]
+    || polygon.textureCoordinates[0][1] !== polygon.textureCoordinates[1][1];
+
   const color1Position = polygon.textureCoordinates[0];
-  const color2Position = polygon.textureCoordinates[0][0] !== polygon.textureCoordinates[1][0]
-    || polygon.textureCoordinates[0][1] !== polygon.textureCoordinates[1][1]
+  const color2Position = isHorizontalGradient
     ? polygon.textureCoordinates[1]
     : polygon.textureCoordinates[2];
 
@@ -173,6 +173,7 @@ const extractColor = async (exportId, polygonIndex, polygon, textures, tx, ty) =
       texture.channels * (color2Position[1] * texture.width + color2Position[0]),
       texture.channels * (color2Position[1] * texture.width + color2Position[0]) + texture.channels,
     ),
+    isHorizontalGradient,
   );
 
   return {
@@ -209,7 +210,7 @@ const extractShape = async (filename, resource, textures) => {
   const startTime = new Date().getTime();
   const extractPolygonPromises = [];
   const shapeRegion = getShapeRegion(resource.polygons);
-  // const index = 2;
+  // const index = 7;
   // const polygon = resource.polygons[index];
   resource.polygons.forEach((polygon, index) => {
     if (polygon.isPolygon) {
@@ -258,7 +259,7 @@ const extractShape = async (filename, resource, textures) => {
     })))
     .png()
     .toFile(`out/${filename}-shape${resource.exportId}.png`);
-  logger.debug(`extractShape time - ${new Date().getTime() - startTime}`);
+  logger.debug(`extractShape time - ${new Date().getTime() - startTime}ms`);
   return {
     type: 'shape',
     exportId: resource.exportId,
@@ -269,6 +270,7 @@ const extractShape = async (filename, resource, textures) => {
 };
 
 const extractShapes = async (filename, textures, resources) => {
+  const startTime = new Date().getTime();
   logger.info('Extracting shapes');
   const extractShapePromises = [];
   Object.keys(resources).forEach((exportId) => {
@@ -288,6 +290,7 @@ const extractShapes = async (filename, textures, resources) => {
   });
 
   logger.info('Finished extracting shapes');
+  logger.debug(`extractShapes time - ${new Date().getTime() - startTime}ms`);
   return shapes;
 };
 

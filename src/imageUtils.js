@@ -74,7 +74,7 @@ const applyColorTransformation = (pixels, colorTransformation) => {
   return Buffer.from(newPixels);
 };
 
-const createShapeWithColor = async (outputCoordinates, color1, color2) => {
+const createShapeWithColor = async (outputCoordinates, color1, color2, isHorizontalGradient) => {
   const coordinatesRegion = {
     left: Math.min(...outputCoordinates.map((p) => p[0])),
     top: Math.min(...outputCoordinates.map((p) => p[1])),
@@ -86,7 +86,12 @@ const createShapeWithColor = async (outputCoordinates, color1, color2) => {
   const polygonString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - coordinatesRegion.left},${vertex[1] - coordinatesRegion.top}`, '');
 
   const polygonShape = sharp(Buffer.from(`<svg width="${coordinatesRegion.width}" height="${coordinatesRegion.height}">
-        <linearGradient  id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient
+          id="grad1"
+          x1="0%"
+          y1="0%"
+          x2="${isHorizontalGradient ? 100 : 0}%"
+          y2="${isHorizontalGradient ? 0 : 100}%">
           <stop offset="0%"  stop-color="rgba(${color1[0]},${color1[1]},${color1[2]},${color1[3]})" />
           <stop offset="100%" stop-color="rgba(${color2[0]},${color2[1]},${color2[2]},${color2[3]})" />
         </linearGradient>
