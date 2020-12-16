@@ -1,15 +1,15 @@
-const Jimp = require('jimp');
 const sharp = require('sharp');
 
 // todo remove entire file, it's useless
-const saveImage = (path, width, height, pixels) => {
-  sharp(Buffer.from(pixels), {
+const saveImage = (path, width, height, channels, pixels) => {
+  const image = sharp(Buffer.from(pixels), {
     raw: {
-      channels: 4,
+      channels,
       width,
       height,
     },
-  }).toFile(path);
+  });
+  image.toFile(path);
 };
 
 const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
@@ -18,7 +18,7 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
   const maskedImage = await sharp(Buffer.from(texture.pixels), {
     raw:
         {
-          channels: 4,
+          channels: texture.channels,
           width: texture.width,
           height: texture.height,
         },
@@ -43,7 +43,7 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
   const extractedShape = await sharp(maskedImage, {
     raw:
     {
-      channels: 4,
+      channels: 4, // because polygon makes it 4
       width: texture.width,
       height: texture.height,
     },
@@ -51,29 +51,20 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
     .extract(region)
     .toBuffer();
 
-  const rotatedShape = await sharp(extractedShape, {
+  const rotatedShape = sharp(extractedShape, {
     raw:
     {
-      channels: 4,
+      channels: texture.channels,
       width: region.width,
       height: region.height,
     },
   })
-    .raw()
-    .rotate(polygon.rotationAngle)
-    .toBuffer();
+    .rotate(polygon.rotationAngle);
 
   const scaleWidth = polygon.outputRegion.maxX - polygon.outputRegion.minX;
   const scaleHeight = polygon.outputRegion.maxY - polygon.outputRegion.minY;
 
-  const resizedShape = await sharp(rotatedShape, {
-    raw:
-    {
-      channels: 4,
-      width: Math.abs(polygon.rotationAngle) === 90 ? region.height : region.width,
-      height: Math.abs(polygon.rotationAngle) === 90 ? region.width : region.height,
-    },
-  })
+  const resizedShape = await rotatedShape
     .resize(scaleWidth, scaleHeight)
     .toBuffer();
 
@@ -83,6 +74,7 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
     pixels: resizedShape,
     width: scaleWidth,
     height: scaleHeight,
+    channels: texture.channels,
   };
 };
 

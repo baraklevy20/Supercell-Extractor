@@ -1,27 +1,88 @@
 const imageUtils = require('../../imageUtils');
 
-const readPixel = (buffer, pixelFormat) => {
-  switch (pixelFormat) {
-    // RGB8888
-    case 0x00: {
-      const value = buffer.readUInt32BE();
-      return [(value >> 24) & 255, (value >> 16) & 255, (value >> 8) & 255, value & 255];
-    }
-    // LA88
-    case 0x06: {
-      const color = buffer.readUInt8();
-      const alpha = buffer.readUInt8();
-      return [color, color, color, alpha];
-    }
-    // RGB565
-    case 0x04: {
-      const value = buffer.readUInt16BE();
-      return [value >> 11, (value >> 5) & 0xff, value & 0xff, 0xff];
-    }
-    default: {
-      throw Error('Unsupported pixel format');
-    }
+const formats = [
+  'GL_RGBA',
+  'GL_RGBA',
+  'GL_RGBA',
+  'GL_RGBA',
+  'GL_RGB',
+  'GL_RGBA',
+  'GL_LUMINANCE_ALPHA',
+  'GL_RGBA',
+  'GL_RGBA',
+  'GL_RGBA',
+  'GL_LUMINANCE',
+];
+
+const types = [
+  'GL_UNSIGNED_BYTE',
+  'GL_UNSIGNED_BYTE',
+  'GL_UNSIGNED_SHORT_4_4_4_4',
+  'GL_UNSIGNED_SHORT_5_5_5_1',
+  'GL_UNSIGNED_SHORT_5_6_5',
+  'GL_UNSIGNED_BYTE',
+  'GL_UNSIGNED_BYTE',
+  'GL_UNSIGNED_BYTE',
+  'GL_UNSIGNED_BYTE',
+  'GL_UNSIGNED_SHORT_4_4_4_4',
+  'GL_UNSIGNED_BYTE',
+];
+const bytesToReadPerPixelFormat = [
+  4,
+  4,
+  2,
+  2,
+  2,
+  4,
+  2,
+  4,
+  4,
+  2,
+  1,
+];
+
+const channelsPerFormat = {
+  GL_RGBA: 4,
+  GL_RGB: 3,
+  GL_LUMINANCE_ALPHA: 4,
+  GL_LUMINANCE: 3,
+};
+
+const readPixel = (buffer, pixelFormatIndex) => {
+  const format = formats[pixelFormatIndex] || 'GL_RGBA';
+  const type = types[pixelFormatIndex] || 'GL_UNSIGNED_BYTE';
+  const bytesToRead = bytesToReadPerPixelFormat[pixelFormatIndex] || 4;
+
+  const bytesRead = buffer.readBuffer(bytesToRead);
+  let actualBytes;
+  switch (type) {
+    case 'GL_UNSIGNED_SHORT_5_6_5':
+      // [5 bits from first byte, 3 from first byte and 3 from second byte, 5 bits from second byte]
+      actualBytes = [
+        bytesRead[0] & 0b11111000,
+        ((bytesRead[0] & 0b111) << 3) | (bytesRead[1] & 0b11100000),
+        bytesRead[1] & 0b00011111,
+      ];
+      break;
+    // Implementations are easy but I need to dig through old versions to find textures
+    // with such pixel formats to test it
+    case 'GL_UNSIGNED_SHORT_4_4_4_4':
+      throw Error('Not implemented pixel format');
+    case 'GL_UNSIGNED_SHORT_5_5_5_1':
+      throw Error('Not implemented pixel format');
+    default:
+      actualBytes = bytesRead;
   }
+
+  // Unfortunately I couldn't get libvips to work with 1 or 2 channels
+  // so I'm converting it to 3 or 4 channels, respectively
+  if (format === 'GL_LUMINANCE_ALPHA') {
+    return [actualBytes[0], actualBytes[0], actualBytes[0], actualBytes[1]];
+  } if (format === 'GL_LUMINANCE') {
+    return [actualBytes[0], actualBytes[0], actualBytes[0]];
+  }
+
+  return actualBytes;
 };
 
 const readTextures = (scFileName, buffer) => {
@@ -36,10 +97,12 @@ const readTextures = (scFileName, buffer) => {
       break;
     }
 
-    const pixelFormat = buffer.readUInt8();
+    const pixelFormatIndex = buffer.readUInt8();
+    const pixelFormat = formats[pixelFormatIndex] || 'GL_RGBA';
+    const channels = channelsPerFormat[pixelFormat];
     const width = buffer.readUInt16LE();
     const height = buffer.readUInt16LE();
-    const pixels = new Array(width * height * 4);
+    const pixels = new Array(width * height * channels);
 
     if (layoutType === 0x1c) {
       const blockSize = 32;
@@ -55,29 +118,28 @@ const readTextures = (scFileName, buffer) => {
             for (let j = 0; j < blockSize && currentBlockStartColumn + j < width; j += 1) {
               const pixelRow = currentBlockStartRow + i;
               const pixelColumn = currentBlockStartColumn + j;
-              const pixel = readPixel(buffer, pixelFormat);
+              const pixel = readPixel(buffer, pixelFormatIndex);
 
-              [
-                pixels[4 * (pixelRow * width + pixelColumn)],
-                pixels[4 * (pixelRow * width + pixelColumn) + 1],
-                pixels[4 * (pixelRow * width + pixelColumn) + 2],
-                pixels[4 * (pixelRow * width + pixelColumn) + 3]] = pixel;
+              for (let k = 0; k < channels; k += 1) {
+                pixels[channels * (pixelRow * width + pixelColumn) + k] = pixel[k];
+              }
             }
           }
         }
       }
     } else if (layoutType === 0x01) {
       for (let i = 0; i < width * height; i += 1) {
-        const pixel = readPixel(buffer, pixelFormat);
-        [pixels[4 * i], pixels[4 * i + 1], pixels[4 * i + 2], pixels[4 * i + 3]] = pixel;
+        const pixel = readPixel(buffer, pixelFormatIndex);
+        for (let k = 0; k < channels; k += 1) {
+          pixels[channels * i + k] = pixel[k];
+        }
       }
     }
 
     textures.push({
       width,
       height,
-      pixelFormat,
-      layoutType,
+      channels,
       pixels,
     });
 
@@ -85,6 +147,7 @@ const readTextures = (scFileName, buffer) => {
       `out/${scFileName}-texture${textures.length}.png`,
       textures[textures.length - 1].width,
       textures[textures.length - 1].height,
+      textures[textures.length - 1].channels,
       textures[textures.length - 1].pixels,
     );
   }

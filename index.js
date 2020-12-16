@@ -15,25 +15,16 @@ const main = async () => {
   // readScFile('events');
   // readScFile('characters');
   // readScFile('supercell_id'); // lots of gradients
-  // readScFile('loading');
+  readScFile('loading');
   // readScFile('level');
   // readScFile('ui');
   // readScFile('debug');
-  readScFile('background_basic');
+  // readScFile('background_basic');
   // readScFile('background_snowtel');
   // readOldScFile('overlay');
 
   // const sharp = require('sharp');
-  // const ex = await sharp('./out/background_basic-shape0.png').extend({
-  //   top: 0,
-  //   bottom: 0,
-  //   left: 50,
-  //   right: 0,
-  //   background: '#00000000',
-  // }).raw().toBuffer({ resolveWithObject: true });
-  // sharp(ex.data, { raw: { channels: ex.info.channels, width: ex.info.width, height: ex.info.height } })
-  //   .affine([1, 0, 0, 1], { odx: -50, ody: 0, background: '#00000000' })
-  //   .toFile('bananaaaaa.png');
+  // const ex = await sharp('./out/background_basic-texture2.png').metadata();
 };
 
 main();

@@ -171,6 +171,7 @@ const extractColor = async (exportId, polygonIndex, polygon, textures, tx, ty) =
     pixels: extractedShape.pixels,
     width: extractedShape.width,
     height: extractedShape.height,
+    channels: 4,
   };
 };
 
@@ -220,12 +221,15 @@ const extractShape = async (filename, resource, textures) => {
   const result = await Promise.all(extractPolygonPromises);
   const shapeWidth = shapeRegion.maxX - shapeRegion.minX;
   const shapeHeight = shapeRegion.maxY - shapeRegion.minY;
+  const maxNumberOfChannels = Math.max(...result.map(
+    (r) => r.channels,
+  ));
 
   const shape = await sharp({
     create: {
       width: shapeWidth,
       height: shapeHeight,
-      channels: 4,
+      channels: maxNumberOfChannels,
       background: {
         r: 0, g: 0, b: 0, alpha: 0,
       },
@@ -234,7 +238,7 @@ const extractShape = async (filename, resource, textures) => {
     .composite(result.map((r) => ({
       input: r.pixels,
       raw: {
-        channels: 4,
+        channels: r.channels,
         width: r.width,
         height: r.height,
       },
@@ -244,7 +248,7 @@ const extractShape = async (filename, resource, textures) => {
     .toBuffer();
   await sharp(shape, {
     raw: {
-      channels: 4,
+      channels: maxNumberOfChannels,
       width: shapeWidth,
       height: shapeHeight,
     },
