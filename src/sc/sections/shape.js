@@ -4,27 +4,27 @@ const logger = require('../../../logger');
 
 const getRotationAngle = (outputCoordinates, textureCoordinates, outputRegion, textureRegion) => {
   const normalizedOutputCoordinates = outputCoordinates.map((c) => [
-    c[0] / (outputRegion.maxX - outputRegion.minX),
-    c[1] / (outputRegion.maxY - outputRegion.minY),
+    c[0] / (outputRegion.width),
+    c[1] / (outputRegion.height),
   ]);
   const normalizedTextureCoordinates = textureCoordinates.map((c) => [
-    c[0] / (textureRegion.maxX - textureRegion.minX),
-    c[1] / (textureRegion.maxY - textureRegion.minY),
+    c[0] / (textureRegion.width),
+    c[1] / (textureRegion.height),
   ]);
 
-  const minXIndex = outputCoordinates.findIndex(((c) => c[0] === outputRegion.minX));
-  const maxXIndex = outputCoordinates.findIndex(((c) => c[0] === outputRegion.maxX));
-  const minYIndex = outputCoordinates.findIndex(((c) => c[1] === outputRegion.minY));
-  const maxYIndex = outputCoordinates.findIndex(((c) => c[1] === outputRegion.maxY));
+  const leftIndex = outputCoordinates.findIndex(((c) => c[0] === outputRegion.left));
+  const rightIndex = outputCoordinates.findIndex(((c) => c[0] === outputRegion.right));
+  const topIndex = outputCoordinates.findIndex(((c) => c[1] === outputRegion.top));
+  const bottomIndex = outputCoordinates.findIndex(((c) => c[1] === outputRegion.bottom));
 
-  const minOutputX = normalizedOutputCoordinates[minXIndex];
-  const maxOutputX = normalizedOutputCoordinates[maxXIndex];
-  const minOutputY = normalizedOutputCoordinates[minYIndex];
-  const maxOutputY = normalizedOutputCoordinates[maxYIndex];
-  const minTextureX = normalizedTextureCoordinates[minXIndex];
-  const maxTextureX = normalizedTextureCoordinates[maxXIndex];
-  const minTextureY = normalizedTextureCoordinates[minYIndex];
-  const maxTextureY = normalizedTextureCoordinates[maxYIndex];
+  const minOutputX = normalizedOutputCoordinates[leftIndex];
+  const maxOutputX = normalizedOutputCoordinates[rightIndex];
+  const minOutputY = normalizedOutputCoordinates[topIndex];
+  const maxOutputY = normalizedOutputCoordinates[bottomIndex];
+  const minTextureX = normalizedTextureCoordinates[leftIndex];
+  const maxTextureX = normalizedTextureCoordinates[rightIndex];
+  const minTextureY = normalizedTextureCoordinates[topIndex];
+  const maxTextureY = normalizedTextureCoordinates[bottomIndex];
 
   if (Math.fround(minOutputX[1] - minTextureX[0]) === Math.fround(maxOutputX[1] - maxTextureX[0])
       && Math.fround(minOutputX[0] + minTextureX[1]) === Math.fround(maxOutputX[0] + maxTextureX[1])
@@ -53,19 +53,23 @@ const getRegion = (coordinates) => {
   const xCoordinates = coordinates.map((c) => c[0]);
   const yCoordinates = coordinates.map((c) => c[1]);
 
-  const minX = Math.min(...xCoordinates);
-  const maxX = Math.max(...xCoordinates);
-  const minY = Math.min(...yCoordinates);
-  const maxY = Math.max(...yCoordinates);
+  const left = Math.min(...xCoordinates);
+  const right = Math.max(...xCoordinates);
+  const top = Math.min(...yCoordinates);
+  const bottom = Math.max(...yCoordinates);
 
   return {
-    minX, maxX, minY, maxY,
+    left,
+    right,
+    top,
+    bottom,
+    width: right - left,
+    height: bottom - top,
   };
 };
 
 const readShape = (buffer, textures) => {
   const exportId = buffer.readInt16LE();
-  logger.debug(`Shape exportID: ${exportId}`);
 
   const numberOfPolygons = buffer.readUInt16LE();
   const totalNumberOfVertices = buffer.readUInt16LE();
@@ -109,8 +113,8 @@ const readShape = (buffer, textures) => {
 
     // logger.debug('textureCoordinates: ', textureCoordinates);
 
-    const isPolygon = textureRegion.minX !== textureRegion.maxX
-      && textureRegion.minY !== textureRegion.maxY;
+    const isPolygon = textureRegion.left !== textureRegion.right
+      && textureRegion.top !== textureRegion.bottom;
 
     const size = 0.05;
     const rotationAngle = getRotationAngle(
@@ -121,10 +125,10 @@ const readShape = (buffer, textures) => {
     );
 
     const realOutputRegion = {
-      minX: Math.round(outputRegion.minX * size),
-      maxX: Math.round(outputRegion.maxX * size),
-      minY: Math.round(outputRegion.minY * size),
-      maxY: Math.round(outputRegion.maxY * size),
+      left: Math.round(outputRegion.left * size),
+      right: Math.round(outputRegion.right * size),
+      top: Math.round(outputRegion.top * size),
+      bottom: Math.round(outputRegion.bottom * size),
     };
 
     polygons.push({
@@ -133,6 +137,7 @@ const readShape = (buffer, textures) => {
       textureCoordinates,
       rotationAngle,
       outputCoordinates: outputCoordinates.map((c) => [Math.round(c[0] * size), Math.round(c[1] * size)]),
+      textureRegion,
       outputRegion: realOutputRegion,
     });
   }
@@ -185,17 +190,18 @@ const getShapeRegion = (polygons) => {
     });
   });
 
-  const minX = Math.min(...allX);
-  const maxX = Math.max(...allX);
-  const minY = Math.min(...allY);
-  const maxY = Math.max(...allY);
+  const left = Math.min(...allX);
+  const right = Math.max(...allX);
+  const top = Math.min(...allY);
+  const bottom = Math.max(...allY);
 
   return {
-    minX, maxX, minY, maxY,
+    left, right, top, bottom,
   };
 };
 
 const extractShape = async (filename, resource, textures) => {
+  const startTime = new Date().getTime();
   const extractPolygonPromises = [];
   const shapeRegion = getShapeRegion(resource.polygons);
   resource.polygons.forEach((polygon, index) => {
@@ -212,15 +218,15 @@ const extractShape = async (filename, resource, textures) => {
         index,
         polygon,
         textures,
-        shapeRegion.minX,
-        shapeRegion.minY,
+        shapeRegion.left,
+        shapeRegion.top,
       ));
     }
   });
 
   const result = await Promise.all(extractPolygonPromises);
-  const shapeWidth = shapeRegion.maxX - shapeRegion.minX;
-  const shapeHeight = shapeRegion.maxY - shapeRegion.minY;
+  const shapeWidth = shapeRegion.right - shapeRegion.left;
+  const shapeHeight = shapeRegion.bottom - shapeRegion.top;
   const maxNumberOfChannels = Math.max(...result.map(
     (r) => r.channels,
   ));
@@ -242,19 +248,12 @@ const extractShape = async (filename, resource, textures) => {
         width: r.width,
         height: r.height,
       },
-      left: resource.polygons[r.polygonIndex].outputRegion.minX - shapeRegion.minX,
-      top: resource.polygons[r.polygonIndex].outputRegion.minY - shapeRegion.minY,
+      left: resource.polygons[r.polygonIndex].outputRegion.left - shapeRegion.left,
+      top: resource.polygons[r.polygonIndex].outputRegion.top - shapeRegion.top,
     })))
-    .toBuffer();
-  await sharp(shape, {
-    raw: {
-      channels: maxNumberOfChannels,
-      width: shapeWidth,
-      height: shapeHeight,
-    },
-  })
     .png()
     .toFile(`out/${filename}-shape${resource.exportId}.png`);
+  logger.debug(`extractShape time - ${new Date().getTime() - startTime}`);
   return {
     type: 'shape',
     exportId: resource.exportId,

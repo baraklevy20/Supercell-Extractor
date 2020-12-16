@@ -13,68 +13,49 @@ const saveImage = (path, width, height, channels, pixels) => {
 };
 
 const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
-  const polygonString = polygon.textureCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0]},${vertex[1]}`, '');
+  const polygonString = polygon.textureCoordinates.reduce((acc, vertex) => (
+    `${acc} ${vertex[0] - polygon.textureRegion.left},${vertex[1] - polygon.textureRegion.top}`
+  ), '');
+  const scaleWidth = polygon.outputRegion.right - polygon.outputRegion.left;
+  const scaleHeight = polygon.outputRegion.bottom - polygon.outputRegion.top;
 
-  const maskedImage = await sharp(Buffer.from(texture.pixels), {
-    raw:
-        {
-          channels: texture.channels,
-          width: texture.width,
-          height: texture.height,
-        },
-  })
-    .composite([{
-      input: Buffer.from(
-        `<svg width="${texture.width}" height="${texture.height}">
-        <polygon fill="white" points="${polygonString}"/>
-        </svg>`,
-      ),
-      blend: 'dest-in',
-    }]).toBuffer();
-
-  const region = {
-    left: Math.min(...polygon.textureCoordinates.map((p) => p[0])),
-    top: Math.min(...polygon.textureCoordinates.map((p) => p[1])),
-  };
-  region.width = Math.max(...polygon.textureCoordinates.map((p) => p[0])) - region.left;
-  region.height = Math.max(...polygon.textureCoordinates.map((p) => p[1])) - region.top;
-
-  // todo a faster way would be to first crop to the region size and then use a mask
-  const extractedShape = await sharp(maskedImage, {
+  const extractedShape = await sharp(Buffer.from(texture.pixels), {
     raw:
     {
-      channels: 4, // because polygon makes it 4
+      channels: texture.channels,
       width: texture.width,
       height: texture.height,
     },
   })
-    .extract(region)
+    .extract(polygon.textureRegion)
+    .composite([{
+      input: Buffer.from(
+        `<svg width="${polygon.textureRegion.width}" height="${polygon.textureRegion.height}">
+        <polygon fill="white" points="${polygonString}"/>
+        </svg>`,
+      ),
+      blend: 'dest-in',
+    }])
     .toBuffer();
 
-  const rotatedShape = sharp(extractedShape, {
-    raw:
-    {
-      channels: texture.channels,
-      width: region.width,
-      height: region.height,
+  const finalShape = await sharp(extractedShape, {
+    raw: {
+      channels: 4,
+      width: polygon.textureRegion.width,
+      height: polygon.textureRegion.height,
     },
   })
-    .rotate(polygon.rotationAngle);
-
-  const scaleWidth = polygon.outputRegion.maxX - polygon.outputRegion.minX;
-  const scaleHeight = polygon.outputRegion.maxY - polygon.outputRegion.minY;
-
-  const resizedShape = await rotatedShape
+    .rotate(polygon.rotationAngle)
     .resize(scaleWidth, scaleHeight)
     .toBuffer();
 
   return {
     exportId,
     polygonIndex,
-    pixels: resizedShape,
+    pixels: finalShape,
     width: scaleWidth,
     height: scaleHeight,
-    channels: texture.channels,
+    channels: 4,
   };
 };
 
