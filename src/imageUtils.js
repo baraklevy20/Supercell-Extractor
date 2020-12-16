@@ -74,7 +74,7 @@ const applyColorTransformation = (pixels, colorTransformation) => {
   return Buffer.from(newPixels);
 };
 
-const createShapeWithColor = async (outputCoordinates, color1, color2, tx, ty) => {
+const createShapeWithColor = async (outputCoordinates, color1, color2) => {
   const coordinatesRegion = {
     left: Math.min(...outputCoordinates.map((p) => p[0])),
     top: Math.min(...outputCoordinates.map((p) => p[1])),
@@ -83,12 +83,12 @@ const createShapeWithColor = async (outputCoordinates, color1, color2, tx, ty) =
   coordinatesRegion.height = Math.max(...outputCoordinates.map((p) => p[1])) - coordinatesRegion.top;
 
   // Move coordinates to origin and generate svg polygon string
-  const polygonString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - tx},${vertex[1] - ty}`, '');
+  const polygonString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - coordinatesRegion.left},${vertex[1] - coordinatesRegion.top}`, '');
 
   const polygonShape = sharp(Buffer.from(`<svg width="${coordinatesRegion.width}" height="${coordinatesRegion.height}">
-        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%"  stop-color="#${color1.toString(16).padStart(8, '0')}" />
-          <stop offset="100%" stop-color="#${color2.toString(16).padStart(8, '0')}" />
+        <linearGradient  id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"  stop-color="rgba(${color1[0]},${color1[1]},${color1[2]},${color1[3]})" />
+          <stop offset="100%" stop-color="rgba(${color2[0]},${color2[1]},${color2[2]},${color2[3]})" />
         </linearGradient>
         <polygon fill="url(#grad1)" points="${polygonString}"/>
         </svg>`));

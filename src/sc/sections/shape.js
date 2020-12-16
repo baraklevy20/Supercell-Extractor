@@ -70,7 +70,6 @@ const getRegion = (coordinates) => {
 
 const readShape = (buffer, textures) => {
   const exportId = buffer.readInt16LE();
-
   const numberOfPolygons = buffer.readUInt16LE();
   const totalNumberOfVertices = buffer.readUInt16LE();
 
@@ -162,12 +161,18 @@ const extractColor = async (exportId, polygonIndex, polygon, textures, tx, ty) =
     ? polygon.textureCoordinates[1]
     : polygon.textureCoordinates[2];
 
+  const texture = textures[polygon.textureId];
+
   const extractedShape = await imageUtils.createShapeWithColor(
     polygon.outputCoordinates,
-    textures[polygon.textureId].pixels[color1Position[1] * textures[polygon.textureId].width + color1Position[0]],
-    textures[polygon.textureId].pixels[color2Position[1] * textures[polygon.textureId].width + color2Position[0]],
-    tx,
-    ty,
+    texture.pixels.slice(
+      texture.channels * (color1Position[1] * texture.width + color1Position[0]),
+      texture.channels * (color1Position[1] * texture.width + color1Position[0]) + texture.channels,
+    ),
+    texture.pixels.slice(
+      texture.channels * (color2Position[1] * texture.width + color2Position[0]),
+      texture.channels * (color2Position[1] * texture.width + color2Position[0]) + texture.channels,
+    ),
   );
 
   return {
@@ -204,6 +209,8 @@ const extractShape = async (filename, resource, textures) => {
   const startTime = new Date().getTime();
   const extractPolygonPromises = [];
   const shapeRegion = getShapeRegion(resource.polygons);
+  // const index = 2;
+  // const polygon = resource.polygons[index];
   resource.polygons.forEach((polygon, index) => {
     if (polygon.isPolygon) {
       extractPolygonPromises.push(imageUtils.extractPolygon(
@@ -218,8 +225,6 @@ const extractShape = async (filename, resource, textures) => {
         index,
         polygon,
         textures,
-        shapeRegion.left,
-        shapeRegion.top,
       ));
     }
   });
