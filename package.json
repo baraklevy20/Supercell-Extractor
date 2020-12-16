@@ -10,7 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "jimp": "^0.16.1",
     "js-md5": "^0.7.3",
     "lzma-native": "^6.0.1",
     "sharp": "^0.26.3",
