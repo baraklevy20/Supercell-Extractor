@@ -65,8 +65,6 @@ const readPixel = (buffer, pixelFormatIndex) => {
         Math.floor((bytesRead[0] & 0b00011111) * 255 / 31),
       ];
       break;
-    // Implementations are easy but I need to dig through old versions to find textures
-    // with such pixel formats to test it
     case 'GL_UNSIGNED_SHORT_4_4_4_4':
       actualBytes = [
         ((bytesRead[1] & 0b11110000) >> 4) * 17,
@@ -75,6 +73,8 @@ const readPixel = (buffer, pixelFormatIndex) => {
         (bytesRead[0] & 0b00001111) * 17,
       ];
       break;
+    // Implementation is easy but I need to dig through old versions to find textures
+    // with such pixel formats to test it
     case 'GL_UNSIGNED_SHORT_5_5_5_1':
       throw Error('Not implemented pixel format');
     default:
@@ -95,11 +95,15 @@ const readPixel = (buffer, pixelFormatIndex) => {
 const readTexture = (
   buffer,
   textureBuffer,
+  layoutType,
   scFileName,
   textureId,
 ) => {
-  const layoutType = textureBuffer.readUInt8();
-  const blockLength = textureBuffer.readUInt32LE();
+  if (buffer !== textureBuffer) {
+    // eslint-disable-next-line no-param-reassign
+    layoutType = textureBuffer.readUInt8();
+    textureBuffer.readUInt32LE(); // block length
+  }
   const pixelFormatIndex = textureBuffer.readUInt8();
   const pixelFormat = formats[pixelFormatIndex] || 'GL_RGBA';
   const channels = channelsPerFormat[pixelFormat];
@@ -107,8 +111,10 @@ const readTexture = (
   const height = textureBuffer.readUInt16LE();
   const pixels = new Array(width * height * channels);
 
-  // Skip pixel format (1), width (2) and height (2) in the original buffer
-  buffer.readBuffer(5);
+  if (buffer !== textureBuffer) {
+    // Skip pixel format (1), width (2) and height (2) in the original buffer
+    buffer.readBuffer(5);
+  }
 
   if (layoutType === 0x1c) {
     const blockSize = 32;

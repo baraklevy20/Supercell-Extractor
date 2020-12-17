@@ -26,11 +26,6 @@ const getScBuffer = async (scFileName) => {
   return decompressedScFile;
 };
 
-const getOldScBuffer = async (scFileName) => {
-  const buffer = SmartBuffer.fromBuffer(fs.readFileSync(`sccoc/${scFileName}.sc`));
-  return buffer.scOldDecompress();
-};
-
 const getTextureBuffer = async (
   buffer,
   filename,
@@ -51,7 +46,7 @@ const getTextureBuffer = async (
   return buffer;
 };
 
-const readNormalScFile = async (filename, buffer, isOld = false) => {
+const readNormalScFile = async (filename, buffer) => {
   logger.info(`Starting ${filename}`);
   const resources = {};
   const transformMatrices = [];
@@ -88,9 +83,11 @@ const readNormalScFile = async (filename, buffer, isOld = false) => {
   let blockType;
   let i = 0;
 
+  let hasExternalTexFile = false;
+
+  // These don't have any meaning if hasExternalTexFile is false
   let hasLowResTexFile = true;
   let hasHighResTexFile = true;
-  let hasExternalTexFile = false;
   let textureBuffer;
 
   while (blockType !== 0) {
@@ -124,6 +121,7 @@ const readNormalScFile = async (filename, buffer, isOld = false) => {
         textures.push(textureSection.readTexture(
           buffer,
           textureBuffer,
+          blockType,
           filename,
           textures.length,
         ));
@@ -173,11 +171,8 @@ const readNormalScFile = async (filename, buffer, isOld = false) => {
         if (shapesCount > totalShapes) {
           logger.error(`${filename} - Reading too many shapes`);
         }
-        if (isOld) {
-          buffer.readBuffer(blockSize);
-        } else {
-          addResource(resources, shapeSection.readShape(buffer, textures));
-        }
+
+        addResource(resources, shapeSection.readShape(buffer, textures));
         break;
       default: {
         const block = buffer.readBuffer(blockSize);
@@ -208,17 +203,6 @@ const readScFile = async (fileName) => {
   // );
 };
 
-const readOldScFile = async (scFileName) => {
-  const scFileContent = readNormalScFile(scFileName, await getOldScBuffer(scFileName), null, true);
-  // await movieClipSection.createMovieClips(
-  //   scFileContent.transformMatrices,
-  //   scFileContent.colorMatrices,
-  //   textures,
-  //   scFileContent.resources,
-  // );
-};
-
 module.exports = {
   readScFile,
-  readOldScFile,
 };
