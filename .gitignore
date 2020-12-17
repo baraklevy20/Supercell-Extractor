@@ -5,6 +5,7 @@ node_modules/
 /csv_client/
 /csv_logic/
 /out/
+/Hay Day/
 /sc3d/
 *.png
 *.webp

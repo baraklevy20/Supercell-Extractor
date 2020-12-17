@@ -86,15 +86,9 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
         addResource(resources, textFieldSection.readTextField(buffer, blockType));
         break;
       case 0x08:
-        if (transformMatrices.length >= totalTransformMatrices) {
-          logger.error(`${filename} - Reading too many transform matrices`);
-        }
         transformMatrices.push(transformMatrixSection.readTransformMatrix(buffer));
         break;
       case 0x09:
-        if (colorTransforms.length >= totalColorTransforms) {
-          logger.error(`${filename}- Reading too many color transforms`);
-        }
         colorTransforms.push(colorVariationSection.readColorTransform(buffer));
         break;
       case 0x03:
@@ -137,7 +131,7 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
 };
 
 const getScBuffer = async (scFileName) => {
-  const buffer = SmartBuffer.fromBuffer(fs.readFileSync(`sc/${scFileName}.sc`));
+  const buffer = SmartBuffer.fromBuffer(fs.readFileSync(`${scFileName}.sc`));
   const decompressedScFile = await buffer.scDecompress();
 
   if (!buffer.scCheckValidity(decompressedScFile)) {
@@ -156,7 +150,7 @@ const readScFile = async (fileName) => {
   const textures = textureSection.readTextures(fileName, await getScBuffer(`${fileName}_tex`));
   const scFileContent = readNormalScFile(fileName, await getScBuffer(fileName), textures);
   // const shapes = await shapeSection.extractShapes(fileName, textures, [scFileContent.resources[0]]);
-  const shapes = await shapeSection.extractShapes(fileName, textures, scFileContent.resources);
+  // const shapes = await shapeSection.extractShapes(fileName, textures, scFileContent.resources);
   // await movieClipSection.createMovieClips(
   //   fileName,
   //   scFileContent.transformMatrices,
