@@ -1,4 +1,5 @@
 const sharp = require('sharp');
+const pLimit = require('p-limit');
 const imageUtils = require('../../imageUtils');
 const logger = require('../../../logger');
 
@@ -273,12 +274,14 @@ const extractShapes = async (filename, textures, resources) => {
   const startTime = new Date().getTime();
   logger.info('Extracting shapes');
   const extractShapePromises = [];
+  const limit = pLimit(10);
+
   Object.keys(resources).forEach((exportId) => {
   // const exportId = 821;
     const resource = resources[exportId];
 
     if (resource.type === 'shape') {
-      extractShapePromises.push(extractShape(filename, resource, textures));
+      extractShapePromises.push(limit(() => extractShape(filename, resource, textures)));
     }
   });
 

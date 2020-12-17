@@ -60,7 +60,7 @@ const readTextField = (buffer, blockType) => {
     c15,
   };
 
-  logger.debug(textField);
+  // logger.debug(textField);
   return textField;
 
   // logger.info('TextField: ', textField);
