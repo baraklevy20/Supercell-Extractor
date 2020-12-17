@@ -14,14 +14,51 @@ const addResource = (resources, resource) => {
   resources[resource.exportId] = resource;
 };
 
-const readNormalScFile = (filename, buffer, textures, isOld = false) => {
+const getScBuffer = async (scFileName) => {
+  const buffer = SmartBuffer.fromBuffer(fs.readFileSync(`${scFileName}.sc`));
+  const decompressedScFile = await buffer.scDecompress();
+  fs.writeFileSync(`sc_out/${scFileName}.sc`, decompressedScFile.internalBuffer);
+
+  if (!buffer.scCheckValidity(decompressedScFile)) {
+    logger.error(`${scFileName} is corrupted. Skipping.`);
+  }
+
+  return decompressedScFile;
+};
+
+const getOldScBuffer = async (scFileName) => {
+  const buffer = SmartBuffer.fromBuffer(fs.readFileSync(`sccoc/${scFileName}.sc`));
+  return buffer.scOldDecompress();
+};
+
+const getTextureBuffer = async (
+  buffer,
+  filename,
+  hasExternalTexFile,
+  hasHighResTexFile,
+  hasLowResTexFile,
+) => {
+  if (hasExternalTexFile) {
+    if (hasHighResTexFile) {
+      return getScBuffer(`${filename}_tex`);
+    }
+    if (hasLowResTexFile) {
+      return getScBuffer(`${filename}_lowres_tex`);
+    }
+    throw Error('External file but no high nor low res texture files');
+  }
+
+  return buffer;
+};
+
+const readNormalScFile = async (filename, buffer, isOld = false) => {
   logger.info(`Starting ${filename}`);
   const resources = {};
   const transformMatrices = [];
   const colorTransforms = [];
+  const textures = [];
   let shapesCount = 0;
   let movieClipsCount = 0;
-  const texturesCount = 0;
   let textFieldsCount = 0;
 
   const totalShapes = buffer.readUInt16LE();
@@ -51,11 +88,11 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
   let blockType;
   let i = 0;
 
-  // A flag used to indicate if the current sc file has a corresponding _tex file
-  let hasTexFile = false;
+  let hasLowResTexFile = true;
+  let hasHighResTexFile = true;
+  let hasExternalTexFile = false;
+  let textureBuffer;
 
-  // A flag used to indicate if the current file contains debug info. Not used in the extractor
-  let isDebugFile = false;
   while (blockType !== 0) {
     blockType = buffer.readUInt8();
     const blockSize = buffer.readUInt32LE();
@@ -65,12 +102,40 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
     }
 
     switch (blockType) {
+      case 0x01:
+      case 0x10:
+      case 0x1c:
+      case 0x1d:
+      case 0x22:
+        if (!textureBuffer) {
+          // eslint-disable-next-line no-await-in-loop
+          textureBuffer = await getTextureBuffer(
+            buffer,
+            filename,
+            hasExternalTexFile,
+            hasHighResTexFile,
+            hasLowResTexFile,
+          );
+        }
+        if (textures.length >= totalTextures) {
+          logger.error(`${filename} - Reading too many textures`);
+        }
+
+        textures.push(textureSection.readTexture(
+          buffer,
+          textureBuffer,
+          filename,
+          textures.length,
+        ));
+        break;
       case 0x17:
-        hasTexFile = true;
+        hasLowResTexFile = false;
         break;
       case 0x1a:
-        // eslint-disable-next-line no-unused-vars
-        isDebugFile = true;
+        hasExternalTexFile = true;
+        break;
+      case 0x1e:
+        hasHighResTexFile = false;
         break;
       case 0x07:
       case 0x0f:
@@ -130,25 +195,8 @@ const readNormalScFile = (filename, buffer, textures, isOld = false) => {
   return { resources, colorMatrices: colorTransforms, transformMatrices };
 };
 
-const getScBuffer = async (scFileName) => {
-  const buffer = SmartBuffer.fromBuffer(fs.readFileSync(`${scFileName}.sc`));
-  const decompressedScFile = await buffer.scDecompress();
-
-  if (!buffer.scCheckValidity(decompressedScFile)) {
-    logger.error(`${scFileName} is corrupted. Skipping.`);
-  }
-
-  return decompressedScFile;
-};
-
-const getOldScBuffer = async (scFileName) => {
-  const buffer = SmartBuffer.fromBuffer(fs.readFileSync(`sccoc/${scFileName}.sc`));
-  return buffer.scOldDecompress();
-};
-
 const readScFile = async (fileName) => {
-  const textures = textureSection.readTextures(fileName, await getScBuffer(`${fileName}_tex`));
-  const scFileContent = readNormalScFile(fileName, await getScBuffer(fileName), textures);
+  const scFileContent = await readNormalScFile(fileName, await getScBuffer(fileName));
   // const shapes = await shapeSection.extractShapes(fileName, textures, [scFileContent.resources[0]]);
   // const shapes = await shapeSection.extractShapes(fileName, textures, scFileContent.resources);
   // await movieClipSection.createMovieClips(

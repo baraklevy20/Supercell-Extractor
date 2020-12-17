@@ -92,76 +92,72 @@ const readPixel = (buffer, pixelFormatIndex) => {
   return actualBytes;
 };
 
-const readTextures = (scFileName, buffer) => {
-  let blockLength;
-  const textures = [];
+const readTexture = (
+  buffer,
+  textureBuffer,
+  scFileName,
+  textureId,
+) => {
+  const layoutType = textureBuffer.readUInt8();
+  const blockLength = textureBuffer.readUInt32LE();
+  const pixelFormatIndex = textureBuffer.readUInt8();
+  const pixelFormat = formats[pixelFormatIndex] || 'GL_RGBA';
+  const channels = channelsPerFormat[pixelFormat];
+  const width = textureBuffer.readUInt16LE();
+  const height = textureBuffer.readUInt16LE();
+  const pixels = new Array(width * height * channels);
 
-  while (blockLength !== 0) {
-    const layoutType = buffer.readUInt8();
-    blockLength = buffer.readUInt32LE();
+  // Skip pixel format (1), width (2) and height (2) in the original buffer
+  buffer.readBuffer(5);
 
-    if (blockLength === 0) {
-      break;
-    }
+  if (layoutType === 0x1c) {
+    const blockSize = 32;
+    const numberOfBlocksInRow = Math.ceil(width / blockSize);
+    const numberOfBlocksInColumn = Math.ceil(height / blockSize);
 
-    const pixelFormatIndex = buffer.readUInt8();
-    const pixelFormat = formats[pixelFormatIndex] || 'GL_RGBA';
-    const channels = channelsPerFormat[pixelFormat];
-    const width = buffer.readUInt16LE();
-    const height = buffer.readUInt16LE();
-    const pixels = new Array(width * height * channels);
+    for (let r = 0; r < numberOfBlocksInColumn; r += 1) {
+      for (let c = 0; c < numberOfBlocksInRow; c += 1) {
+        const currentBlockStartRow = r * blockSize;
+        const currentBlockStartColumn = c * blockSize;
 
-    if (layoutType === 0x1c) {
-      const blockSize = 32;
-      const numberOfBlocksInRow = Math.ceil(width / blockSize);
-      const numberOfBlocksInColumn = Math.ceil(height / blockSize);
+        for (let i = 0; i < blockSize && currentBlockStartRow + i < height; i += 1) {
+          for (let j = 0; j < blockSize && currentBlockStartColumn + j < width; j += 1) {
+            const pixelRow = currentBlockStartRow + i;
+            const pixelColumn = currentBlockStartColumn + j;
+            const pixel = readPixel(textureBuffer, pixelFormatIndex);
 
-      for (let r = 0; r < numberOfBlocksInColumn; r += 1) {
-        for (let c = 0; c < numberOfBlocksInRow; c += 1) {
-          const currentBlockStartRow = r * blockSize;
-          const currentBlockStartColumn = c * blockSize;
-
-          for (let i = 0; i < blockSize && currentBlockStartRow + i < height; i += 1) {
-            for (let j = 0; j < blockSize && currentBlockStartColumn + j < width; j += 1) {
-              const pixelRow = currentBlockStartRow + i;
-              const pixelColumn = currentBlockStartColumn + j;
-              const pixel = readPixel(buffer, pixelFormatIndex);
-
-              for (let k = 0; k < channels; k += 1) {
-                pixels[channels * (pixelRow * width + pixelColumn) + k] = pixel[k];
-              }
+            for (let k = 0; k < channels; k += 1) {
+              pixels[channels * (pixelRow * width + pixelColumn) + k] = pixel[k];
             }
           }
         }
       }
-    } else if (layoutType === 0x01) {
-      for (let i = 0; i < width * height; i += 1) {
-        const pixel = readPixel(buffer, pixelFormatIndex);
-        for (let k = 0; k < channels; k += 1) {
-          pixels[channels * i + k] = pixel[k];
-        }
+    }
+  } else if (layoutType === 0x01) {
+    for (let i = 0; i < width * height; i += 1) {
+      const pixel = readPixel(textureBuffer, pixelFormatIndex);
+      for (let k = 0; k < channels; k += 1) {
+        pixels[channels * i + k] = pixel[k];
       }
     }
-
-    textures.push({
-      width,
-      height,
-      channels,
-      pixels,
-    });
-
-    imageUtils.saveImage(
-      `out/${scFileName}-texture${textures.length}.png`,
-      textures[textures.length - 1].width,
-      textures[textures.length - 1].height,
-      textures[textures.length - 1].channels,
-      textures[textures.length - 1].pixels,
-    );
   }
 
-  return textures;
+  imageUtils.saveImage(
+    `out/${scFileName}-texture${textureId}.png`,
+    width,
+    height,
+    channels,
+    pixels,
+  );
+
+  return {
+    width,
+    height,
+    channels,
+    pixels,
+  };
 };
 
 module.exports = {
-  readTextures,
+  readTexture,
 };
