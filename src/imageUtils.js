@@ -16,8 +16,8 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
   const polygonString = polygon.textureCoordinates.reduce((acc, vertex) => (
     `${acc} ${vertex[0] - polygon.textureRegion.left},${vertex[1] - polygon.textureRegion.top}`
   ), '');
-  const scaleWidth = polygon.outputRegion.right - polygon.outputRegion.left;
-  const scaleHeight = polygon.outputRegion.bottom - polygon.outputRegion.top;
+  const scaleWidth = polygon.outputRegion.right - polygon.outputRegion.left + 1;
+  const scaleHeight = polygon.outputRegion.bottom - polygon.outputRegion.top + 1;
 
   const extractedShape = await texture
     .extract(polygon.textureRegion)
@@ -72,8 +72,9 @@ const createShapeWithColor = async (
   isHorizontalGradient,
 ) => {
   // Move coordinates to origin and generate svg polygon string
-  const width = outputRegion.right - outputRegion.left;
-  const height = outputRegion.bottom - outputRegion.top;
+  const width = outputRegion.right - outputRegion.left + 1;
+  const height = outputRegion.bottom - outputRegion.top + 1;
+
   const polygonString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - outputRegion.left},${vertex[1] - outputRegion.top}`, '');
 
   const polygonShape = sharp(Buffer.from(`<svg width="${width}" height="${height}">

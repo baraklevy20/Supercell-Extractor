@@ -146,7 +146,7 @@ const readShape = (buffer, textures) => {
   return shape;
 };
 
-const extractColor = async (exportId, polygonIndex, polygon, textures, tx, ty) => {
+const extractColor = async (exportId, polygonIndex, polygon, textures) => {
   // Check if textureCoordinates[0] !== textureCoordinates[1]
   const isHorizontalGradient = polygon.textureCoordinates[0][0] !== polygon.textureCoordinates[1][0]
     || polygon.textureCoordinates[0][1] !== polygon.textureCoordinates[1][1];
@@ -193,6 +193,8 @@ const getShapeRegion = (polygons) => {
     right,
     top,
     bottom,
+    width: right - left + 1,
+    height: bottom - top + 1,
   };
 };
 
@@ -220,25 +222,23 @@ const extractShape = async (filename, resource, textures, texturesSharp) => {
   });
 
   const result = await Promise.all(extractPolygonPromises);
-  const shapeWidth = shapeRegion.right - shapeRegion.left;
-  const shapeHeight = shapeRegion.bottom - shapeRegion.top;
   const maxNumberOfChannels = Math.max(...result.map(
     (r) => r.channels,
   ));
 
   const shape = await sharp({
     create: {
-      width: shapeWidth,
-      height: shapeHeight,
+      width: shapeRegion.width,
+      height: shapeRegion.height,
       channels: maxNumberOfChannels,
       background: {
         r: 0, g: 0, b: 0, alpha: 0,
       },
     },
   })
-  // todo check if the polygons can intersect. if so, what kind of blend mode do we need?
-  // otherwise, remove composite as it's slow af
-  // maybe they can, check shape 13 in events.sc
+    // todo check if the polygons can intersect. if so, what kind of blend mode do we need?
+    // otherwise, remove composite as it's slow af
+    // maybe they can, check shape 13 in events.sc
     .composite(result.map((r) => ({
       input: r.pixels,
       raw: {
@@ -248,16 +248,16 @@ const extractShape = async (filename, resource, textures, texturesSharp) => {
       },
       left: resource.polygons[r.polygonIndex].outputRegion.left - shapeRegion.left,
       top: resource.polygons[r.polygonIndex].outputRegion.top - shapeRegion.top,
-    })))
-    .png()
-    .toFile(`out/${filename}-shape${resource.exportId}.png`);
+    })));
+
+  await shape.clone().png().toFile(`out/${filename}-shape${resource.exportId}.png`);
 
   return {
     type: 'shape',
     exportId: resource.exportId,
-    pixels: shape,
-    width: shapeWidth,
-    height: shapeHeight,
+    sharp: shape,
+    width: shapeRegion.width,
+    height: shapeRegion.height,
   };
 };
 
