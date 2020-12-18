@@ -118,8 +118,8 @@ const getTransformMatrix = (transformMatrices, index) => (
   index !== -1 ? transformMatrices[index] : null
 );
 
-const getColorTransformation = (colorMatrices, index) => (
-  index !== -1 ? colorMatrices[index] : null
+const getColorTransformation = (colorTransforms, index) => (
+  index !== -1 ? colorTransforms[index] : null
 );
 
 const applyTransforms = async (resource, transformation, colorTransformation) => {
@@ -149,7 +149,9 @@ const applyTransforms = async (resource, transformation, colorTransformation) =>
       right: 0,
       // left: transformation.odx < 0 ? Math.ceil(-transformation.odx) : 0,
       // right: transformation.odx > 0 ? Math.ceil(transformation.odx) : 0,
-      background: '#00000000',
+      background: {
+        r: 0, g: 0, b: 0, alpha: 0,
+      },
     }).raw().toBuffer({ resolveWithObject: true });
     transformed = sharp(extended.data,
       {
@@ -159,7 +161,9 @@ const applyTransforms = async (resource, transformation, colorTransformation) =>
           height: extended.info.height,
         },
       }).affine(transformation.matrix, {
-      background: '#00000000',
+      background: {
+        r: 0, g: 0, b: 0, alpha: 0,
+      },
       odx: transformation.odx,
       ody: transformation.ody,
     });
@@ -192,7 +196,7 @@ const getResourceByExportId = (resources, shapes, exportId) => {
   return resources[exportId];
 };
 
-const readFrameResource = (resources, shapes, transformMatrices, colorMatrices, movieClip, frameResource) => {
+const readFrameResource = (resources, shapes, transformMatrices, colorTransforms, movieClip, frameResource) => {
   const resource = getResourceByExportId(
     resources,
     shapes,
@@ -203,7 +207,7 @@ const readFrameResource = (resources, shapes, transformMatrices, colorMatrices, 
     frameResource.transformMatrixIndex,
   );
   const colorTransformation = getColorTransformation(
-    colorMatrices,
+    colorTransforms,
     frameResource.colorTransformIndex,
   );
 
@@ -214,12 +218,12 @@ const readFrameResource = (resources, shapes, transformMatrices, colorMatrices, 
   );
 };
 
-const compositeFrame = async (frame, resources, shapes, transformMatrices, colorMatrices, movieClip) => {
+const compositeFrame = async (frame, resources, shapes, transformMatrices, colorTransforms, movieClip) => {
   // const blendTypes = ['clear', 'source', 'over', 'in', 'out', 'atop', 'dest', 'dest-over', 'dest-in', 'dest-out', 'dest-atop', 'xor', 'add', 'saturate', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'colour-dodge', 'color-dodge', 'colour-burn', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion'];
   // for (let j = 0; j < blendTypes.length; j += 1) {
   //   const currentFrameComposite = [];
   //   for (let i = 0; i < frame.frameResources.length; i += 1) {
-  //     const frameResourceImage = await readFrameResource(resources, shapes, transformMatrices, colorMatrices, movieClip, frame.frameResources[i]);
+  //     const frameResourceImage = await readFrameResource(resources, shapes, transformMatrices, colorTransforms, movieClip, frame.frameResources[i]);
 
   //     // todo eventually readFrameResource should always return.
   //     // right now it only supports sprites so it doesn't always return a frame resource
@@ -247,7 +251,9 @@ const compositeFrame = async (frame, resources, shapes, transformMatrices, color
   //       channels: 4,
   //       width: currentFrameComposite[0].raw.width,
   //       height: currentFrameComposite[0].raw.height,
-  //       background: '#00000000',
+  //       background: {
+  //   r: 0, g: 0, b: 0, alpha: 0,
+  // },
   //     },
   //   }).composite([currentFrameComposite[1], currentFrameComposite[0]]).toFile(`four/four-${blendTypes[j]}.png`);
 
@@ -256,7 +262,9 @@ const compositeFrame = async (frame, resources, shapes, transformMatrices, color
   //       channels: 4,
   //       width: currentFrameComposite[0].raw.width,
   //       height: currentFrameComposite[0].raw.height,
-  //       background: '#00000000',
+  //       background: {
+  //   r: 0, g: 0, b: 0, alpha: 0,
+  // },
   //     },
   //   }).composite([currentFrameComposite[0], currentFrameComposite[1]]).toFile(`four/three-${blendTypes[j]}.png`);
 
@@ -271,7 +279,7 @@ const compositeFrame = async (frame, resources, shapes, transformMatrices, color
   const currentFrameComposite = [];
   const blendType = 'over';
   for (let i = 0; i < frame.frameResources.length; i += 1) {
-    const frameResourceImages = await readFrameResource(resources, shapes, transformMatrices, colorMatrices, movieClip, frame.frameResources[i]);
+    const frameResourceImages = await readFrameResource(resources, shapes, transformMatrices, colorTransforms, movieClip, frame.frameResources[i]);
 
     // this won't be needed once i read text fields too
     if (!frameResourceImages) {
@@ -302,7 +310,9 @@ const compositeFrame = async (frame, resources, shapes, transformMatrices, color
         channels: 4,
         width: maxWidth,
         height: maxHeight,
-        background: '#00000000',
+        background: {
+          r: 0, g: 0, b: 0, alpha: 0,
+        },
       },
     }).composite(currentFrameComposite.map((c) => ({
       ...c,
@@ -340,7 +350,7 @@ const pushIntoStripStream = (stripStream, frames, maxWidth, pageHeight) => {
   stripStream.push(null);
 };
 
-const createMovieClips = async (filename, transformMatrices, colorMatrices, resources, shapes) => {
+const createMovieClips = async (filename, transformMatrices, colorTransforms, resources, shapes) => {
   logger.info('Extracting movie clips');
   // eventually i'll split resources into text fields and movie clips as well
   const generateMovieClipsPromises = [];
@@ -352,7 +362,7 @@ const createMovieClips = async (filename, transformMatrices, colorMatrices, reso
     if (movieClip.type === 'movieClip') {
       const currentMovieClipFinalFrames = [];
       for (let i = Math.max(0, movieClip.frames.length - 700); i < movieClip.frames.length; i += 1) {
-        const compositedFrame = await compositeFrame(movieClip.frames[i], resources, shapes, transformMatrices, colorMatrices, movieClip);
+        const compositedFrame = await compositeFrame(movieClip.frames[i], resources, shapes, transformMatrices, colorTransforms, movieClip);
 
         if (compositedFrame) {
           currentMovieClipFinalFrames.push(compositedFrame);

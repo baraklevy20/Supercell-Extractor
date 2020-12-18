@@ -93,16 +93,14 @@ const readShape = (buffer, textures) => {
     const numberOfVertices = buffer.readUInt8();
     const outputCoordinates = [];
 
-    for (let j = 0; j < numberOfVertices; j++) {
+    for (let j = 0; j < numberOfVertices; j += 1) {
       const x = buffer.readInt32LE();
       const y = buffer.readInt32LE();
       outputCoordinates.push([x, y]);
     }
 
-    // logger.debug('output coordinates:', outputCoordinates);
-
     const textureCoordinates = [];
-    for (let j = 0; j < numberOfVertices; j++) {
+    for (let j = 0; j < numberOfVertices; j += 1) {
       const x = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].width);
       const y = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].height);
       textureCoordinates.push([x, y]);
@@ -110,8 +108,6 @@ const readShape = (buffer, textures) => {
 
     const outputRegion = getRegion(outputCoordinates);
     const textureRegion = getRegion(textureCoordinates);
-
-    // logger.debug('textureCoordinates: ', textureCoordinates);
 
     const isPolygon = textureRegion.left !== textureRegion.right
       && textureRegion.top !== textureRegion.bottom;
@@ -151,9 +147,7 @@ const readShape = (buffer, textures) => {
 };
 
 const extractColor = async (exportId, polygonIndex, polygon, textures, tx, ty) => {
-  if (polygonIndex === 3) {
-    // logger.debug('what');
-  }
+  // Check if textureCoordinates[0] !== textureCoordinates[1]
   const isHorizontalGradient = polygon.textureCoordinates[0][0] !== polygon.textureCoordinates[1][0]
     || polygon.textureCoordinates[0][1] !== polygon.textureCoordinates[1][1];
 
@@ -166,6 +160,7 @@ const extractColor = async (exportId, polygonIndex, polygon, textures, tx, ty) =
 
   const extractedShape = await imageUtils.createShapeWithColor(
     polygon.outputCoordinates,
+    polygon.outputRegion,
     texture.pixels.slice(
       texture.channels * (color1Position[1] * texture.width + color1Position[0]),
       texture.channels * (color1Position[1] * texture.width + color1Position[0]) + texture.channels,
@@ -188,27 +183,20 @@ const extractColor = async (exportId, polygonIndex, polygon, textures, tx, ty) =
 };
 
 const getShapeRegion = (polygons) => {
-  const allX = [];
-  const allY = [];
-  polygons.forEach((polygon) => {
-    polygon.outputCoordinates.forEach((coordinate) => {
-      allX.push(coordinate[0]);
-      allY.push(coordinate[1]);
-    });
-  });
-
-  const left = Math.min(...allX);
-  const right = Math.max(...allX);
-  const top = Math.min(...allY);
-  const bottom = Math.max(...allY);
+  const left = Math.min(...polygons.map((polygon) => polygon.outputRegion.left));
+  const right = Math.max(...polygons.map((polygon) => polygon.outputRegion.right));
+  const top = Math.min(...polygons.map((polygon) => polygon.outputRegion.top));
+  const bottom = Math.max(...polygons.map((polygon) => polygon.outputRegion.bottom));
 
   return {
-    left, right, top, bottom,
+    left,
+    right,
+    top,
+    bottom,
   };
 };
 
-const extractShape = async (filename, resource, textures) => {
-  const startTime = new Date().getTime();
+const extractShape = async (filename, resource, textures, texturesSharp) => {
   const extractPolygonPromises = [];
   const shapeRegion = getShapeRegion(resource.polygons);
   // const index = 7;
@@ -219,7 +207,7 @@ const extractShape = async (filename, resource, textures) => {
         resource.exportId,
         index,
         polygon,
-        textures[polygon.textureId],
+        texturesSharp[polygon.textureId],
       ));
     } else {
       extractPolygonPromises.push(extractColor(
@@ -248,6 +236,9 @@ const extractShape = async (filename, resource, textures) => {
       },
     },
   })
+  // todo check if the polygons can intersect. if so, what kind of blend mode do we need?
+  // otherwise, remove composite as it's slow af
+  // maybe they can, check shape 13 in events.sc
     .composite(result.map((r) => ({
       input: r.pixels,
       raw: {
@@ -260,7 +251,7 @@ const extractShape = async (filename, resource, textures) => {
     })))
     .png()
     .toFile(`out/${filename}-shape${resource.exportId}.png`);
-  logger.debug(`extractShape time - ${new Date().getTime() - startTime}ms`);
+
   return {
     type: 'shape',
     exportId: resource.exportId,
@@ -271,17 +262,23 @@ const extractShape = async (filename, resource, textures) => {
 };
 
 const extractShapes = async (filename, textures, resources) => {
-  const startTime = new Date().getTime();
   logger.info('Extracting shapes');
   const extractShapePromises = [];
   const limit = pLimit(10);
+  const texturesSharp = textures.map((texture) => sharp(Buffer.from(texture.pixels), {
+    raw:
+    {
+      channels: texture.channels,
+      width: texture.width,
+      height: texture.height,
+    },
+  }));
 
   Object.keys(resources).forEach((exportId) => {
-  // const exportId = 821;
     const resource = resources[exportId];
 
     if (resource.type === 'shape') {
-      extractShapePromises.push(limit(() => extractShape(filename, resource, textures)));
+      extractShapePromises.push(limit(() => extractShape(filename, resource, textures, texturesSharp)));
     }
   });
 
@@ -293,7 +290,6 @@ const extractShapes = async (filename, textures, resources) => {
   });
 
   logger.info('Finished extracting shapes');
-  logger.debug(`extractShapes time - ${new Date().getTime() - startTime}ms`);
   return shapes;
 };
 

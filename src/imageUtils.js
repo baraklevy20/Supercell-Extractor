@@ -19,23 +19,13 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
   const scaleWidth = polygon.outputRegion.right - polygon.outputRegion.left;
   const scaleHeight = polygon.outputRegion.bottom - polygon.outputRegion.top;
 
-  const extractedShape = await sharp(Buffer.from(texture.pixels), {
-    raw:
-    {
-      channels: texture.channels,
-      width: texture.width,
-      height: texture.height,
-    },
-  })
+  const extractedShape = await texture
     .extract(polygon.textureRegion)
-    .composite([{
-      input: Buffer.from(
-        `<svg width="${polygon.textureRegion.width}" height="${polygon.textureRegion.height}">
+    .boolean(Buffer.from(
+      `<svg width="${polygon.textureRegion.width}" height="${polygon.textureRegion.height}">
         <polygon fill="white" points="${polygonString}"/>
         </svg>`,
-      ),
-      blend: 'dest-in',
-    }])
+    ), 'and')
     .toBuffer();
 
   const finalShape = await sharp(extractedShape, {
@@ -74,18 +64,19 @@ const applyColorTransformation = (pixels, colorTransformation) => {
   return Buffer.from(newPixels);
 };
 
-const createShapeWithColor = async (outputCoordinates, color1, color2, isHorizontalGradient) => {
-  const coordinatesRegion = {
-    left: Math.min(...outputCoordinates.map((p) => p[0])),
-    top: Math.min(...outputCoordinates.map((p) => p[1])),
-  };
-  coordinatesRegion.width = Math.max(...outputCoordinates.map((p) => p[0])) - coordinatesRegion.left;
-  coordinatesRegion.height = Math.max(...outputCoordinates.map((p) => p[1])) - coordinatesRegion.top;
-
+const createShapeWithColor = async (
+  outputCoordinates,
+  outputRegion,
+  color1,
+  color2,
+  isHorizontalGradient,
+) => {
   // Move coordinates to origin and generate svg polygon string
-  const polygonString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - coordinatesRegion.left},${vertex[1] - coordinatesRegion.top}`, '');
+  const width = outputRegion.right - outputRegion.left;
+  const height = outputRegion.bottom - outputRegion.top;
+  const polygonString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - outputRegion.left},${vertex[1] - outputRegion.top}`, '');
 
-  const polygonShape = sharp(Buffer.from(`<svg width="${coordinatesRegion.width}" height="${coordinatesRegion.height}">
+  const polygonShape = sharp(Buffer.from(`<svg width="${width}" height="${height}">
         <linearGradient
           id="grad1"
           x1="0%"
@@ -99,8 +90,8 @@ const createShapeWithColor = async (outputCoordinates, color1, color2, isHorizon
         </svg>`));
   return {
     pixels: await polygonShape.raw().toBuffer(),
-    width: coordinatesRegion.width,
-    height: coordinatesRegion.height,
+    width,
+    height,
   };
 };
 

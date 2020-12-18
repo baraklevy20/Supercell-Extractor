@@ -187,17 +187,28 @@ const readNormalScFile = async (filename, buffer) => {
   }
 
   logger.info(`Finished reading file sections. Number of sections: ${i}, filename: ${filename}`);
-  return { resources, colorMatrices: colorTransforms, transformMatrices };
+  return {
+    textures,
+    resources,
+    colorTransforms,
+    transformMatrices,
+  };
 };
 
 const readScFile = async (fileName) => {
   const scFileContent = await readNormalScFile(fileName, await getScBuffer(fileName));
   // const shapes = await shapeSection.extractShapes(fileName, textures, [scFileContent.resources[0]]);
-  // const shapes = await shapeSection.extractShapes(fileName, textures, scFileContent.resources);
+
+  const startTime = new Date().getTime();
+  const repeat = 1;
+  for (let i = 0; i < repeat; i += 1) {
+    const shapes = await shapeSection.extractShapes(fileName, scFileContent.textures, scFileContent.resources);
+  }
+  logger.debug(`extractShapes time - ${(new Date().getTime() - startTime) / repeat}ms`);
   // await movieClipSection.createMovieClips(
   //   fileName,
   //   scFileContent.transformMatrices,
-  //   scFileContent.colorMatrices,
+  //   scFileContent.colorTransforms,
   //   scFileContent.resources,
   //   shapes,
   // );

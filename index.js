@@ -31,22 +31,22 @@ const main = async () => {
   //   }
   // });
 
-  // promises.push(readScFile('effects_brawler'));
+  // promises.push(readScFile('sc/effects_brawler'));
   // promises.push(readScFile('Hay Day/1_49_4/common'));
-  promises.push(readScFile('Hay Day/1_49_4/supercell_id'));
-  // promises.push(readScFile('events'));
+  // promises.push(readScFile('Hay Day/1_49_4/supercell_id'));
+  promises.push(readScFile('sc/events'));
   // promises.push(readScFile('characters'));
   // promises.push(readScFile('sc/supercell_id'));
-  // promises.push(readScFile('loading'));
+  // promises.push(readScFile('sc/loading'));
   // promises.push(readScFile('sc/level'));
-  // promises.push(readScFile('ui'));
+  // promises.push(readScFile('sc/ui'));
   // promises.push(readScFile('sc/debug'));
   // promises.push(readScFile('background_basic'));
   // promises.push(readScFile('sccoc/background_npc'));
 
   // const sharp = require('sharp');
   // const ex = await sharp('./out/background_basic-texture2.png').metadata();
-  const results = await Promise.all(promises);
+  const results = await Promise.allSettled(promises);
   results.forEach((result) => {
     if (result.status === 'rejected') {
       // logger.error(result.reason);
