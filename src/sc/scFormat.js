@@ -101,6 +101,7 @@ const readNormalScFile = async (filename, buffer) => {
     switch (blockType) {
       case 0x01:
       case 0x10:
+      case 0x18:
       case 0x1c:
       case 0x1d:
       case 0x22:
@@ -197,13 +198,12 @@ const readNormalScFile = async (filename, buffer) => {
 
 const readScFile = async (fileName) => {
   const scFileContent = await readNormalScFile(fileName, await getScBuffer(fileName));
-  // const shapes = await shapeSection.extractShapes(fileName, textures, [scFileContent.resources[0]]);
-
   const startTime = new Date().getTime();
   const repeat = 1;
-  for (let i = 0; i < repeat; i += 1) {
-    const shapes = await shapeSection.extractShapes(fileName, scFileContent.textures, scFileContent.resources);
-  }
+
+  // for (let i = 0; i < repeat; i += 1) {
+  // const shapes = await shapeSection.extractShapes(fileName, scFileContent.textures, [scFileContent.resources[0]]);
+  // const shapes = await shapeSection.extractShapes(fileName, scFileContent.textures, scFileContent.resources);
   logger.debug(`extractShapes time - ${(new Date().getTime() - startTime) / repeat}ms`);
   // await movieClipSection.createMovieClips(
   //   fileName,
@@ -212,6 +212,7 @@ const readScFile = async (fileName) => {
   //   scFileContent.resources,
   //   shapes,
   // );
+  // }
 };
 
 module.exports = {

@@ -116,7 +116,7 @@ const readTexture = (
     buffer.readBuffer(5);
   }
 
-  if (layoutType === 0x1c) {
+  if (layoutType === 0x1b || layoutType === 0x1c) {
     const blockSize = 32;
     const numberOfBlocksInRow = Math.ceil(width / blockSize);
     const numberOfBlocksInColumn = Math.ceil(height / blockSize);
