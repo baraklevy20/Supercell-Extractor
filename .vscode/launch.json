@@ -13,6 +13,12 @@
       ],
       "program": "${workspaceFolder}\\index.js",
       "outputCapture": "std",
+      "args": [
+        // "--folder", "sc/Brawl Stars/11.106",
+        "--file", "sc/Brawl Stars/11.106/ui.sc",
+        // "--folder", "sc/Clash of Clans/13.0.1", 
+        // "--file", "sc/Hay Day/1_36_212/animals.sc"
+      ]
     }
   ]
 }
