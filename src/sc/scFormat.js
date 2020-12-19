@@ -177,7 +177,7 @@ const readNormalScFile = async (filename, buffer) => {
         break;
       default: {
         const block = buffer.readBuffer(blockSize);
-        logger.debug(
+        console.log(
           `${i} Block type: ${blockType.toString(
             16,
           )}. Size: ${blockSize}. Data: ${block.slice(0, 20).toString('hex')}`,
@@ -203,16 +203,73 @@ const readScFile = async (fileName) => {
 
   // for (let i = 0; i < repeat; i += 1) {
   // const shapes = await shapeSection.extractShapes(fileName, scFileContent.textures, [scFileContent.resources[0]]);
-  // const shapes = await shapeSection.extractShapes(fileName, scFileContent.textures, scFileContent.resources);
+  const shapes = await shapeSection.extractShapes(fileName, scFileContent.textures, scFileContent.resources);
+
+  Object.values(shapes).forEach((shape) => {
+    scFileContent.resources[shape.exportId] = shape;
+  });
+
+  // scFileContent.transformMatrices.left = {
+  //   matrix: [1, -1, 1, 0],
+  //   odx: -100,
+  //   ody: 0,
+  // };
+  // scFileContent.transformMatrices.right = {
+  //   matrix: [0, -1, 1, 0],
+  //   odx: 100,
+  //   ody: 0,
+  // };
+
+  // scFileContent.resources[12] = {
+  //   exportId: 12,
+  //   type: 'movieClip',
+  //   frameCount: 1,
+  //   frames: [{
+  //     frameResources: [
+  //       { resourceIndex: 0, transformMatrixIndex: 'right', colorTransformIndex: -1 },
+  //     ],
+  //   }],
+  //   resourcesMapping: [
+  //     2,
+  //   ],
+  // };
+  // scFileContent.resources[10] = {
+  //   exportId: 10,
+  //   type: 'movieClip',
+  //   frameCount: 1,
+  //   frames: [{
+  //     frameResources: [
+  //       { resourceIndex: 1, transformMatrixIndex: -1, colorTransformIndex: -1 },
+  //       { resourceIndex: 0, transformMatrixIndex: 'left', colorTransformIndex: -1 },
+  //     ],
+  //   }],
+  //   resourcesMapping: [
+  //     11,
+  //     4,
+  //   ],
+  // };
+  // scFileContent.resources[11] = {
+  //   exportId: 11,
+  //   type: 'movieClip',
+  //   frameCount: 1,
+  //   frames: [{
+  //     frameResources: [
+  //       { resourceIndex: 0, transformMatrixIndex: 'right', colorTransformIndex: -1 },
+  //     ],
+  //   }],
+  //   resourcesMapping: [
+  //     2,
+  //   ],
+  // };
+
   logger.debug(`extractShapes time - ${(new Date().getTime() - startTime) / repeat}ms`);
-  // await movieClipSection.createMovieClips(
-  //   fileName,
-  //   scFileContent.transformMatrices,
-  //   scFileContent.colorTransforms,
-  //   scFileContent.resources,
-  //   shapes,
-  // );
-  // }
+  await movieClipSection.createMovieClips(
+    fileName,
+    scFileContent.transformMatrices,
+    scFileContent.colorTransforms,
+    scFileContent.resources,
+    shapes,
+  );
 };
 
 module.exports = {
