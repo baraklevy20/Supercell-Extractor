@@ -9,6 +9,6 @@ Please follow the Supercell fan content policy - http://supercell.com/fan-conten
 
 ## About the tool
 
-The tool extracts many more resources than any other SC extraction tool. Normally other tools can only extract textures and shapes (partially, as some aren't extracted correctly), but this tool is capable of extracting textures, shapes (fully), gradients and movie clips.
+The tool extracts many more resources than any other SC extraction tool. Normally other tools can only extract textures and shapes (partially, as some aren't extracted correctly), but this tool is capable of extracting textures, shapes (fully), gradients and **movie clips**.
 
 The tool also does it much quicker than any other tool, about twice as fast as the currently fastest tool - https://github.com/AriusX7/sc-extract.
