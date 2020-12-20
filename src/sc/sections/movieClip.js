@@ -86,6 +86,7 @@ const readMovieClip = (buffer) => {
         }
 
         frames.push({
+          frameName,
           frameResources: currentFrameResources,
         });
 
@@ -124,6 +125,8 @@ const readMovieClip = (buffer) => {
     v30,
     something,
   };
+
+  // console.log({ ...movieClip, frames: movieClip.frames.map((f) => f.frameName) });
 
   return movieClip;
 };
@@ -282,7 +285,7 @@ const applyRecursively = async (
     const currentFrameComposite = [];
     const { frameResources } = resource.frames[frameIndex % resource.frameCount];
     const newTransformations = [];
-    for (let j = 0; j < Math.min(4, frameResources.length); j += 1) {
+    for (let j = 0; j < Math.min(10, frameResources.length); j += 1) {
       const currentFrameResource = frameResources[j];
       const currentTransformation = getTransformMatrix(transformMatrices, currentFrameResource.transformMatrixIndex);
       const newTransformation = multiplyMatrices(
@@ -316,6 +319,7 @@ const applyRecursively = async (
 };
 
 const createMovieClip = async (
+  exportName,
   fileName,
   exportId,
   resources,
@@ -327,7 +331,7 @@ const createMovieClip = async (
     movieClip.frameCount,
     ...movieClip.resourcesMapping.map((rm) => resources[rm].frameCount || 1),
   );
-  const numberOfFrames = Math.min(10, maxNumberOfFrames);
+  const numberOfFrames = Math.min(1, maxNumberOfFrames);
   const frames = [];
   for (let i = 0; i < numberOfFrames; i += 1) {
     const result = await applyRecursively(
@@ -366,21 +370,23 @@ const createMovieClip = async (
 
     stripStream.pipe(sharpStream);
     pushIntoStripStream(stripStream, frames, maxWidth, pageHeight);
+    const exportNameString = exportName ? `${exportName.join('&')}-` : 'noexport-';
     return sharpStream
       .clone()
-      .toFile(`out/${fileName}-movieclip${exportId}-${numberOfFrames}.webp`);
+      .toFile(`out/${fileName}-movieclip-${exportNameString}${exportId}-${numberOfFrames}.webp`);
   }
 
   logger.info('Finished extracting movie clips');
 };
 
-const createMovieClips = async (filename, transformMatrices, colorTransforms, resources) => {
+const createMovieClips = async (filename, transformMatrices, colorTransforms, resources, exports) => {
   logger.info('Extracting movie clips');
   const generateMovieClipsPromises = [];
   // const resource = resources[4];
   Object.values(resources).forEach((resource) => {
     if (resource.type === 'movieClip') {
       generateMovieClipsPromises.push(createMovieClip(
+        exports[resource.exportId],
         filename,
         resource.exportId,
         resources,

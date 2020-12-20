@@ -76,8 +76,10 @@ const readNormalScFile = async (filename, buffer) => {
 
   for (let i = 0; i < numberOfExports; i += 1) {
     const exportName = buffer.scReadString();
-    // logger.debug(`${exportsIds[i].toString()} - ${exportName}`);
-    exports[exportsIds[i]] = exportName;
+    if (!exports[exportsIds[i]]) {
+      exports[exportsIds[i]] = [];
+    }
+    exports[exportsIds[i]].push(exportName);
   }
 
   let blockType;
@@ -189,6 +191,7 @@ const readNormalScFile = async (filename, buffer) => {
 
   logger.info(`Finished reading file sections. Number of sections: ${i}, filename: ${filename}`);
   return {
+    exports,
     textures,
     resources,
     colorTransforms,
@@ -262,13 +265,41 @@ const readScFile = async (fileName) => {
   //   ],
   // };
 
+  // scFileContent.resources.two = {
+  //   exportId: 'two',
+  //   type: 'movieClip',
+  //   frameCount: 1,
+  //   frames: [{
+  //     frameResources: [
+  //       { resourceIndex: 0, transformMatrixIndex: 816, colorTransformIndex: -1 },
+  //     ],
+  //   }],
+  //   resourcesMapping: [
+  //     'one',
+  //   ],
+  // };
+
+  // scFileContent.resources.one = {
+  //   exportId: 'one',
+  //   type: 'movieClip',
+  //   frameCount: 1,
+  //   frames: [{
+  //     frameResources: [
+  //       { resourceIndex: 0, transformMatrixIndex: -1, colorTransformIndex: -1 },
+  //     ],
+  //   }],
+  //   resourcesMapping: [
+  //     18,
+  //   ],
+  // };
+
   logger.debug(`extractShapes time - ${(new Date().getTime() - startTime) / repeat}ms`);
   await movieClipSection.createMovieClips(
     fileName,
     scFileContent.transformMatrices,
     scFileContent.colorTransforms,
     scFileContent.resources,
-    shapes,
+    scFileContent.exports,
   );
 };
 

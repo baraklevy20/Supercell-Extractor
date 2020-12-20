@@ -18,8 +18,10 @@
         // "--folder", "sc/Brawl Stars/14.100",
         // "--folder", "sc/Brawl Stars/18.104",
         // "--folder", "sc/Brawl Stars/23.90",
-        // "--file", "sc/Brawl Stars/32.153/background_basic.sc",
-        "--file", "sc/Brawl Stars/32.153/supercell_id.sc",
+        "--file", "sc/Brawl Stars/32.153/background_basic.sc",
+        // "--file", "sc/Brawl Stars/32.153/events.sc",
+        // "--file", "sc/Brawl Stars/32.153/loading.sc",
+        // "--file", "sc/Brawl Stars/32.153/supercell_id.sc",
         // "--folder", "sc/Clash of Clans/13.0.1", 
         // "--file", "sc/Hay Day/1_36_212/animals.sc"
       ]
