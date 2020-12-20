@@ -41,11 +41,15 @@ const bytesToReadPerPixelFormat = [
   1,
 ];
 
+// Most image operations on libvips return 4 channels images or
+// must have 4 channels images, thus everything is 4.
+// if in the future it gets better support, it'll be much faster to use
+// the original number of channels (marked in parenthesis)
 const channelsPerFormat = {
-  GL_RGBA: 4,
-  GL_RGB: 3,
-  GL_LUMINANCE_ALPHA: 4,
-  GL_LUMINANCE: 3,
+  GL_RGBA: 4, // (4)
+  GL_RGB: 4, // (3)
+  GL_LUMINANCE_ALPHA: 4, // (2)
+  GL_LUMINANCE: 4, // (1)
 };
 
 const readPixel = (buffer, pixelFormatIndex) => {
@@ -85,8 +89,12 @@ const readPixel = (buffer, pixelFormatIndex) => {
   // so I'm converting it to 3 or 4 channels, respectively
   if (format === 'GL_LUMINANCE_ALPHA') {
     return [actualBytes[0], actualBytes[0], actualBytes[0], actualBytes[1]];
-  } if (format === 'GL_LUMINANCE') {
-    return [actualBytes[0], actualBytes[0], actualBytes[0]];
+  }
+  if (format === 'GL_LUMINANCE') {
+    return [actualBytes[0], actualBytes[0], actualBytes[0], 0xff];
+  }
+  if (format === 'GL_RGB') {
+    return [actualBytes[0], actualBytes[1], actualBytes[2], 0xff];
   }
 
   return actualBytes;
