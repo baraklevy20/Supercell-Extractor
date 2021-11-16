@@ -36,7 +36,7 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
     },
   })
     .rotate(polygon.rotationAngle)
-    .resize(scaleWidth, scaleHeight)
+    .resize(scaleWidth, scaleHeight, { fit: 'fill' })
     .toBuffer();
 
   return {
