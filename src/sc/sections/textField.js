@@ -17,7 +17,7 @@ const readTextField = (buffer, blockType) => {
   const top = buffer.readInt16LE();
   const right = buffer.readInt16LE();
   const bottom = buffer.readInt16LE();
-  const isUppercase = buffer.readUInt8();
+  const isUppercase = !!buffer.readUInt8();
   const unknownText2 = buffer.scReadString();
 
   let unknownFlag5;
