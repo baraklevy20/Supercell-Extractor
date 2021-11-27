@@ -12,17 +12,17 @@
   "dependencies": {
     "fzstd": "0.0.3",
     "js-md5": "^0.7.3",
-    "lzma-native": "^6.0.1",
+    "lzma-native": "^8.0.1",
     "mathjs": "^10.0.0",
     "p-limit": "^3.1.0",
-    "sharp": "^0.26.3",
-    "smart-buffer": "^4.1.0",
+    "sharp": "^0.29.3",
+    "smart-buffer": "^4.2.0",
     "winston": "^3.3.3",
-    "yargs": "^16.2.0"
+    "yargs": "^17.2.1"
   },
   "devDependencies": {
-    "eslint": "^7.16.0",
-    "eslint-config-airbnb-base": "^14.2.1",
-    "eslint-plugin-import": "^2.22.1"
+    "eslint": "^8.3.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.25.3"
   }
 }
