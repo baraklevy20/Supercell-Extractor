@@ -2,30 +2,57 @@
 const { SmartBuffer } = require('smart-buffer');
 const md5 = require('js-md5');
 const lzma = require('lzma-native');
+const fzstd = require('fzstd');
 
 SmartBuffer.prototype.scDecompress = async function scDecompress() {
-  this.scFileVersion = this.internalBuffer.toString('utf8', 0, 2) !== 'SC' ? 0
-    : this.internalBuffer.readUInt32BE(2) === 1 ? 1 : 2;
+  const magic = this.readString(2);
+  let version = this.readUInt32BE();
+  const isNormalScFile = magic === 'SC' && version <= 100;
 
-  let data = this.scFileVersion === 0 ? this.internalBuffer
-    : this.scFileVersion === 1 ? this.internalBuffer.slice(26)
-      : this.internalBuffer.slice(26 + 4);
+  if (isNormalScFile) {
+    if (version === 4) {
+      version = this.readUInt32BE();
+    }
 
-  data = [...data.slice(0, 9), 0, 0, 0, 0, ...data.slice(9)];
-  const decompressedData = await lzma.decompress(data);
-  return SmartBuffer.fromBuffer(Buffer.from(decompressedData));
+    const hashLength = this.readUInt32BE();
+    this.fileHash = this.readBuffer(hashLength).toString('hex');
+  } else {
+    this.readOffset = 0;
+    version = 0;
+  }
+
+  if (version >= 2) {
+    return SmartBuffer.fromBuffer(Buffer.from(
+      fzstd.decompress(this.internalBuffer.slice(this.readOffset)),
+    ));
+  }
+
+  const first9Bytes = this.internalBuffer.slice(this.readOffset, this.readOffset + 9);
+
+  // 5d,0,0 or 5e,0,0 and last byte < 0x20
+  if ((first9Bytes[0] === 0x5d || first9Bytes[0] === 0x5e)
+    && first9Bytes[1] === 0
+    && first9Bytes[2] === 0
+    && first9Bytes[8] < 0x20) {
+    let compressedData = this.internalBuffer.slice(this.readOffset);
+    compressedData = [...compressedData.slice(0, 9), 0, 0, 0, 0, ...compressedData.slice(9)];
+    const decompressedData = await lzma.decompress(compressedData);
+    return SmartBuffer.fromBuffer(Buffer.from(decompressedData));
+  }
+  if (first9Bytes.slice(0, 4).toString() === 'SCLZ') {
+    throw Error('Unsupported compression algorithm: LZHAM');
+  }
+
+  throw Error(`Invalid compression algorithm. First 9 bytes: ${first9Bytes}`);
 };
 
 SmartBuffer.prototype.scCheckValidity = function scCheckValidity(decompressedBuffer) {
   // Old versions don't have a md5 hash
-  if (this.scFileVersion === 0) {
+  if (!this.fileHash) {
     return true;
   }
-  const startingIndex = this.scFileVersion === 1 ? 10 : 14;
-
-  const fileHash = this.internalBuffer.slice(startingIndex, startingIndex + 16).toString('hex');
   const computedHash = md5(decompressedBuffer.internalBuffer);
-  return fileHash === computedHash;
+  return this.fileHash === computedHash;
 };
 
 SmartBuffer.prototype.scReadString = function scReadFunction() {

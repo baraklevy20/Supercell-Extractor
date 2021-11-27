@@ -10,8 +10,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "fzstd": "0.0.3",
     "js-md5": "^0.7.3",
     "lzma-native": "^6.0.1",
+    "mathjs": "^10.0.0",
     "p-limit": "^3.1.0",
     "sharp": "^0.26.3",
     "smart-buffer": "^4.1.0",
