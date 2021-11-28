@@ -15,8 +15,9 @@ const main = async () => {
   const promises = [];
   const filesToExtract = !argv.file ? [] : (Array.isArray(argv.file) ? argv.file : [argv.file]);
   const folders = !argv.folder ? [] : (Array.isArray(argv.folder) ? argv.folder : [argv.folder]);
+
   folders.forEach((folder) => {
-    // fs.rmdirSync(folder, { recursive: true });
+    // fs.rmSync(folder, { recursive: true });
     // fs.mkdirSync(folder, { recursive: true });
     const scFiles = fs.readdirSync(folder);
     scFiles.forEach((scFile) => {
@@ -26,7 +27,9 @@ const main = async () => {
     });
   });
 
-  fs.rmdirSync('out', { recursive: true });
+  if (fs.existsSync('out')) {
+    fs.rmSync('out', { recursive: true });
+  }
 
   filesToExtract.forEach((scFile) => {
     fs.mkdirSync(`out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
