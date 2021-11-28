@@ -5,10 +5,12 @@ const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
 const { readScFile } = require('./src/sc/scFormat');
 const logger = require('./logger');
+const lzham = require('./src/lzham');
 
 const { argv } = yargs(hideBin(process.argv));
 
 const main = async () => {
+  await lzham.init();
   const startTime = new Date().getTime();
   const promises = [];
   const filesToExtract = !argv.file ? [] : (Array.isArray(argv.file) ? argv.file : [argv.file]);

@@ -3,6 +3,7 @@ const { SmartBuffer } = require('smart-buffer');
 const md5 = require('js-md5');
 const lzma = require('lzma-native');
 const fzstd = require('fzstd');
+const lzham = require('../lzham');
 
 SmartBuffer.prototype.scDecompress = async function scDecompress() {
   const magic = this.readString(2);
@@ -40,7 +41,12 @@ SmartBuffer.prototype.scDecompress = async function scDecompress() {
     return SmartBuffer.fromBuffer(Buffer.from(decompressedData));
   }
   if (first9Bytes.slice(0, 4).toString() === 'SCLZ') {
-    throw Error('Unsupported compression algorithm: LZHAM');
+    this.readString(4); // Skip SCLZ
+    const dictSizeLog2 = this.readUInt8();
+    const outputSize = this.readInt32LE();
+    return SmartBuffer.fromBuffer(Buffer.from(
+      lzham.decompress(this.readBuffer(), { dictSizeLog2, outputSize }),
+    ));
   }
 
   throw Error(`Invalid compression algorithm. First 9 bytes: ${first9Bytes}`);

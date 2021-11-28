@@ -1,0 +1,1 @@
+em++ ./lzhamdll/liblzhamdll.a ./lzhamdecomp/liblzhamdecomp.a ./lzhamcomp/liblzhamcomp.a -o lzham.js -s EXPORTED_RUNTIME_METHODS='["cwrap", "getValue", "setValue"]' -s EXPORTED_FUNCTIONS='["_lzham_decompress_memory", "_malloc", "_free"]' -s ALLOW_MEMORY_GROWTH -O3
