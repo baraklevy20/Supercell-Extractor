@@ -12,18 +12,18 @@ const saveImage = (path, width, height, channels, pixels) => {
   image.toFile(path);
 };
 
-const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
-  const polygonString = polygon.textureCoordinates.reduce((acc, vertex) => (
-    `${acc} ${vertex[0] - polygon.textureRegion.left},${vertex[1] - polygon.textureRegion.top}`
+const extractSlice = async (exportId, sliceIndex, slice, texture) => {
+  const sliceString = slice.textureCoordinates.reduce((acc, vertex) => (
+    `${acc} ${vertex[0] - slice.textureRegion.left},${vertex[1] - slice.textureRegion.top}`
   ), '');
-  const scaleWidth = polygon.outputRegion.right - polygon.outputRegion.left + 1;
-  const scaleHeight = polygon.outputRegion.bottom - polygon.outputRegion.top + 1;
+  const scaleWidth = slice.outputRegion.right - slice.outputRegion.left + 1;
+  const scaleHeight = slice.outputRegion.bottom - slice.outputRegion.top + 1;
 
   const extractedShape = await texture
-    .extract(polygon.textureRegion)
+    .extract(slice.textureRegion)
     .boolean(Buffer.from(
-      `<svg width="${polygon.textureRegion.width}" height="${polygon.textureRegion.height}">
-        <polygon fill="white" points="${polygonString}"/>
+      `<svg width="${slice.textureRegion.width}" height="${slice.textureRegion.height}">
+        <polygon fill="white" points="${sliceString}"/>
         </svg>`,
     ), 'and')
     .toBuffer();
@@ -31,17 +31,17 @@ const extractPolygon = async (exportId, polygonIndex, polygon, texture) => {
   const finalShape = await sharp(extractedShape, {
     raw: {
       channels: 4,
-      width: polygon.textureRegion.width,
-      height: polygon.textureRegion.height,
+      width: slice.textureRegion.width,
+      height: slice.textureRegion.height,
     },
   })
-    .rotate(polygon.rotationAngle)
+    .rotate(slice.rotationAngle)
     .resize(scaleWidth, scaleHeight, { fit: 'fill' })
     .toBuffer();
 
   return {
     exportId,
-    polygonIndex,
+    sliceIndex,
     pixels: finalShape,
     width: scaleWidth,
     height: scaleHeight,
@@ -71,13 +71,13 @@ const createShapeWithColor = async (
   color2,
   isHorizontalGradient,
 ) => {
-  // Move coordinates to origin and generate svg polygon string
+  // Move coordinates to origin and generate svg slice string
   const width = outputRegion.right - outputRegion.left + 1;
   const height = outputRegion.bottom - outputRegion.top + 1;
 
-  const polygonString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - outputRegion.left},${vertex[1] - outputRegion.top}`, '');
+  const sliceString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - outputRegion.left},${vertex[1] - outputRegion.top}`, '');
 
-  const polygonShape = sharp(Buffer.from(`<svg width="${width}" height="${height}">
+  const sliceShape = sharp(Buffer.from(`<svg width="${width}" height="${height}">
         <linearGradient
           id="grad1"
           x1="0%"
@@ -87,10 +87,10 @@ const createShapeWithColor = async (
           <stop offset="0%"  stop-color="rgba(${color1[0]},${color1[1]},${color1[2]},${color1[3]})" />
           <stop offset="100%" stop-color="rgba(${color2[0]},${color2[1]},${color2[2]},${color2[3]})" />
         </linearGradient>
-        <polygon fill="url(#grad1)" points="${polygonString}"/>
+        <polygon fill="url(#grad1)" points="${sliceString}"/>
         </svg>`));
   return {
-    pixels: await polygonShape.raw().toBuffer(),
+    pixels: await sliceShape.raw().toBuffer(),
     width,
     height,
   };
@@ -98,7 +98,7 @@ const createShapeWithColor = async (
 
 module.exports = {
   saveImage,
-  extractPolygon,
+  extractSlice,
   createShapeWithColor,
   applyColorTransformation,
 };

@@ -71,23 +71,21 @@ const getRegion = (coordinates) => {
 
 const readShape = (buffer, textures) => {
   const exportId = buffer.readInt16LE();
-  const numberOfPolygons = buffer.readUInt16LE();
+  const numberOfSlices = buffer.readUInt16LE();
   const totalNumberOfVertices = buffer.readUInt16LE();
 
-  let innerBlockSize;
-  const polygons = [];
+  let tagLength;
+  const slices = [];
 
   let textureId;
 
-  while (innerBlockSize !== 0) {
-    const blockHeader = buffer.readUInt8(); // either 0x16=22 or 0x00=0
-    innerBlockSize = buffer.readUInt32LE();
+  while (tagLength !== 0) {
+    const tag = buffer.readUInt8();
+    tagLength = buffer.readUInt32LE();
 
-    if (innerBlockSize === 0) {
+    if (tagLength === 0) {
       break;
     }
-
-    // logger.debug(`Type 12 block header: ${blockHeader}`);
 
     textureId = buffer.readUInt8();
     const numberOfVertices = buffer.readUInt8();
@@ -109,7 +107,7 @@ const readShape = (buffer, textures) => {
     const outputRegion = getRegion(outputCoordinates);
     const textureRegion = getRegion(textureCoordinates);
 
-    const isPolygon = textureRegion.left !== textureRegion.right
+    const isSlice = textureRegion.left !== textureRegion.right
       && textureRegion.top !== textureRegion.bottom;
 
     const size = 0.05;
@@ -127,8 +125,8 @@ const readShape = (buffer, textures) => {
       bottom: Math.round(outputRegion.bottom * size),
     };
 
-    polygons.push({
-      isPolygon,
+    slices.push({
+      isSlice,
       textureId,
       textureCoordinates,
       rotationAngle,
@@ -141,26 +139,26 @@ const readShape = (buffer, textures) => {
   const shape = {
     type: 'shape',
     exportId,
-    polygons,
+    slices,
   };
   return shape;
 };
 
-const extractColor = async (exportId, polygonIndex, polygon, textures) => {
+const extractColor = async (exportId, sliceIndex, slice, textures) => {
   // Check if textureCoordinates[0] !== textureCoordinates[1]
-  const isHorizontalGradient = polygon.textureCoordinates[0][0] !== polygon.textureCoordinates[1][0]
-    || polygon.textureCoordinates[0][1] !== polygon.textureCoordinates[1][1];
+  const isHorizontalGradient = slice.textureCoordinates[0][0] !== slice.textureCoordinates[1][0]
+    || slice.textureCoordinates[0][1] !== slice.textureCoordinates[1][1];
 
-  const color1Position = polygon.textureCoordinates[0];
+  const color1Position = slice.textureCoordinates[0];
   const color2Position = isHorizontalGradient
-    ? polygon.textureCoordinates[1]
-    : polygon.textureCoordinates[2];
+    ? slice.textureCoordinates[1]
+    : slice.textureCoordinates[2];
 
-  const texture = textures[polygon.textureId];
+  const texture = textures[slice.textureId];
 
   const extractedShape = await imageUtils.createShapeWithColor(
-    polygon.outputCoordinates,
-    polygon.outputRegion,
+    slice.outputCoordinates,
+    slice.outputRegion,
     texture.pixels.slice(
       texture.channels * (color1Position[1] * texture.width + color1Position[0]),
       texture.channels * (color1Position[1] * texture.width + color1Position[0]) + texture.channels,
@@ -174,7 +172,7 @@ const extractColor = async (exportId, polygonIndex, polygon, textures) => {
 
   return {
     exportId,
-    polygonIndex,
+    sliceIndex,
     pixels: extractedShape.pixels,
     width: extractedShape.width,
     height: extractedShape.height,
@@ -182,11 +180,11 @@ const extractColor = async (exportId, polygonIndex, polygon, textures) => {
   };
 };
 
-const getShapeRegion = (polygons) => {
-  const left = Math.min(...polygons.map((polygon) => polygon.outputRegion.left));
-  const right = Math.max(...polygons.map((polygon) => polygon.outputRegion.right));
-  const top = Math.min(...polygons.map((polygon) => polygon.outputRegion.top));
-  const bottom = Math.max(...polygons.map((polygon) => polygon.outputRegion.bottom));
+const getShapeRegion = (slices) => {
+  const left = Math.min(...slices.map((slice) => slice.outputRegion.left));
+  const right = Math.max(...slices.map((slice) => slice.outputRegion.right));
+  const top = Math.min(...slices.map((slice) => slice.outputRegion.top));
+  const bottom = Math.max(...slices.map((slice) => slice.outputRegion.bottom));
 
   return {
     left,
@@ -199,29 +197,29 @@ const getShapeRegion = (polygons) => {
 };
 
 const extractShape = async (filename, resource, textures, texturesSharp) => {
-  const extractPolygonPromises = [];
-  const shapeRegion = getShapeRegion(resource.polygons);
+  const extractSlicePromises = [];
+  const shapeRegion = getShapeRegion(resource.slices);
   // const index = 7;
-  // const polygon = resource.polygons[index];
-  resource.polygons.forEach((polygon, index) => {
-    if (polygon.isPolygon) {
-      extractPolygonPromises.push(imageUtils.extractPolygon(
+  // const slice = resource.slices[index];
+  resource.slices.forEach((slice, index) => {
+    if (slice.isSlice) {
+      extractSlicePromises.push(imageUtils.extractSlice(
         resource.exportId,
         index,
-        polygon,
-        texturesSharp[polygon.textureId],
+        slice,
+        texturesSharp[slice.textureId],
       ));
     } else {
-      extractPolygonPromises.push(extractColor(
+      extractSlicePromises.push(extractColor(
         resource.exportId,
         index,
-        polygon,
+        slice,
         textures,
       ));
     }
   });
 
-  const result = await Promise.all(extractPolygonPromises);
+  const result = await Promise.all(extractSlicePromises);
   const maxNumberOfChannels = Math.max(...result.map(
     (r) => r.channels,
   ));
@@ -236,7 +234,7 @@ const extractShape = async (filename, resource, textures, texturesSharp) => {
       },
     },
   })
-    // todo check if the polygons can intersect. if so, what kind of blend mode do we need?
+    // todo check if the slices can intersect. if so, what kind of blend mode do we need?
     // otherwise, remove composite as it's slow af
     // maybe they can, check shape 13 in events.sc
     .composite(result.map((r) => ({
@@ -246,8 +244,8 @@ const extractShape = async (filename, resource, textures, texturesSharp) => {
         width: r.width,
         height: r.height,
       },
-      left: resource.polygons[r.polygonIndex].outputRegion.left - shapeRegion.left,
-      top: resource.polygons[r.polygonIndex].outputRegion.top - shapeRegion.top,
+      left: resource.slices[r.sliceIndex].outputRegion.left - shapeRegion.left,
+      top: resource.slices[r.sliceIndex].outputRegion.top - shapeRegion.top,
     })));
 
   await shape.clone().png().toFile(`out/${filename}-shape${resource.exportId}.png`);

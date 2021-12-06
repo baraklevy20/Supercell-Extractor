@@ -1,6 +1,6 @@
 const logger = require('../../../logger');
 
-const readTextField = (buffer, blockType) => {
+const readTextField = (buffer, tag) => {
   const exportId = buffer.readInt16LE();
   // logger.info(`TextField exportID: ${exportId}`);
   const fontName = buffer.scReadString();
@@ -25,16 +25,16 @@ const readTextField = (buffer, blockType) => {
   let c14;
   let c15;
 
-  if (blockType !== 0x07) {
+  if (tag !== 0x07) {
     unknownFlag5 = !!buffer.readUInt8(); // maybe text modifier - 0 or 1
 
-    if (blockType === 0x15) {
+    if (tag === 0x15) {
       outlineColor = buffer.readUInt32LE();
-    } else if (blockType === 0x21) {
+    } else if (tag === 0x21) {
       outlineColor = buffer.readUInt32LE();
       c14 = buffer.readInt16LE();
       c15 = buffer.readInt16LE();
-    } else if (blockType === 0x2c) {
+    } else if (tag === 0x2c) {
       buffer.readBuffer(11); // not sure what these are yet
     }
   }

@@ -103,14 +103,14 @@ const readPixel = (buffer, pixelFormatIndex) => {
 const readTexture = (
   buffer,
   textureBuffer,
-  layoutType,
+  tag,
   scFileName,
   textureId,
 ) => {
   if (buffer !== textureBuffer) {
     // eslint-disable-next-line no-param-reassign
-    layoutType = textureBuffer.readUInt8();
-    textureBuffer.readUInt32LE(); // block length
+    tag = textureBuffer.readUInt8();
+    textureBuffer.readUInt32LE(); // tag length
   }
   const pixelFormatIndex = textureBuffer.readUInt8();
   const pixelFormat = formats[pixelFormatIndex] || 'GL_RGBA';
@@ -124,7 +124,7 @@ const readTexture = (
     buffer.readBuffer(5);
   }
 
-  if (layoutType === 0x1b || layoutType === 0x1c) {
+  if (tag === 0x1b || tag === 0x1c) {
     const blockSize = 32;
     const numberOfBlocksInRow = Math.ceil(width / blockSize);
     const numberOfBlocksInColumn = Math.ceil(height / blockSize);
@@ -147,7 +147,7 @@ const readTexture = (
         }
       }
     }
-  } else if (layoutType === 0x01) {
+  } else if (tag === 0x01) {
     for (let i = 0; i < width * height; i += 1) {
       const pixel = readPixel(textureBuffer, pixelFormatIndex);
       for (let k = 0; k < channels; k += 1) {
