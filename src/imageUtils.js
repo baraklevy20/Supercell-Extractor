@@ -13,16 +13,16 @@ const saveImage = (path, width, height, channels, pixels) => {
 };
 
 const extractSlice = async (exportId, sliceIndex, slice, texture) => {
-  const sliceString = slice.textureCoordinates.reduce((acc, vertex) => (
-    `${acc} ${vertex[0] - slice.textureRegion.left},${vertex[1] - slice.textureRegion.top}`
+  const sliceString = slice.uv.reduce((acc, vertex) => (
+    `${acc} ${vertex[0] - slice.uvRegion.left},${vertex[1] - slice.uvRegion.top}`
   ), '');
-  const scaleWidth = slice.outputRegion.right - slice.outputRegion.left + 1;
-  const scaleHeight = slice.outputRegion.bottom - slice.outputRegion.top + 1;
+  const scaleWidth = slice.xyRegion.right - slice.xyRegion.left + 1;
+  const scaleHeight = slice.xyRegion.bottom - slice.xyRegion.top + 1;
 
   const extractedShape = await texture
-    .extract(slice.textureRegion)
+    .extract(slice.uvRegion)
     .boolean(Buffer.from(
-      `<svg width="${slice.textureRegion.width}" height="${slice.textureRegion.height}">
+      `<svg width="${slice.uvRegion.width}" height="${slice.uvRegion.height}">
         <polygon fill="white" points="${sliceString}"/>
         </svg>`,
     ), 'and')
@@ -31,8 +31,8 @@ const extractSlice = async (exportId, sliceIndex, slice, texture) => {
   const finalShape = await sharp(extractedShape, {
     raw: {
       channels: 4,
-      width: slice.textureRegion.width,
-      height: slice.textureRegion.height,
+      width: slice.uvRegion.width,
+      height: slice.uvRegion.height,
     },
   })
     .rotate(slice.rotationAngle)
@@ -66,16 +66,16 @@ const applyColorTransformation = (pixels, colorTransformation) => {
 
 const createShapeWithColor = async (
   outputCoordinates,
-  outputRegion,
+  xyRegion,
   color1,
   color2,
   isHorizontalGradient,
 ) => {
   // Move coordinates to origin and generate svg slice string
-  const width = outputRegion.right - outputRegion.left + 1;
-  const height = outputRegion.bottom - outputRegion.top + 1;
+  const width = xyRegion.right - xyRegion.left + 1;
+  const height = xyRegion.bottom - xyRegion.top + 1;
 
-  const sliceString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - outputRegion.left},${vertex[1] - outputRegion.top}`, '');
+  const sliceString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - xyRegion.left},${vertex[1] - xyRegion.top}`, '');
 
   const sliceShape = sharp(Buffer.from(`<svg width="${width}" height="${height}">
         <linearGradient

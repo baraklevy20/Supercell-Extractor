@@ -3,29 +3,29 @@ const pLimit = require('p-limit');
 const imageUtils = require('../../imageUtils');
 const logger = require('../../../logger');
 
-const getRotationAngle = (outputCoordinates, textureCoordinates, outputRegion, textureRegion) => {
+const getRotationAngle = (outputCoordinates, uv, xyRegion, uvRegion) => {
   const normalizedOutputCoordinates = outputCoordinates.map((c) => [
-    c[0] / (outputRegion.width),
-    c[1] / (outputRegion.height),
+    c[0] / (xyRegion.width),
+    c[1] / (xyRegion.height),
   ]);
-  const normalizedTextureCoordinates = textureCoordinates.map((c) => [
-    c[0] / (textureRegion.width),
-    c[1] / (textureRegion.height),
+  const normalizedUV = uv.map((c) => [
+    c[0] / (uvRegion.width),
+    c[1] / (uvRegion.height),
   ]);
 
-  const leftIndex = outputCoordinates.findIndex(((c) => c[0] === outputRegion.left));
-  const rightIndex = outputCoordinates.findIndex(((c) => c[0] === outputRegion.right));
-  const topIndex = outputCoordinates.findIndex(((c) => c[1] === outputRegion.top));
-  const bottomIndex = outputCoordinates.findIndex(((c) => c[1] === outputRegion.bottom));
+  const leftIndex = outputCoordinates.findIndex(((c) => c[0] === xyRegion.left));
+  const rightIndex = outputCoordinates.findIndex(((c) => c[0] === xyRegion.right));
+  const topIndex = outputCoordinates.findIndex(((c) => c[1] === xyRegion.top));
+  const bottomIndex = outputCoordinates.findIndex(((c) => c[1] === xyRegion.bottom));
 
   const minOutputX = normalizedOutputCoordinates[leftIndex];
   const maxOutputX = normalizedOutputCoordinates[rightIndex];
   const minOutputY = normalizedOutputCoordinates[topIndex];
   const maxOutputY = normalizedOutputCoordinates[bottomIndex];
-  const minTextureX = normalizedTextureCoordinates[leftIndex];
-  const maxTextureX = normalizedTextureCoordinates[rightIndex];
-  const minTextureY = normalizedTextureCoordinates[topIndex];
-  const maxTextureY = normalizedTextureCoordinates[bottomIndex];
+  const minTextureX = normalizedUV[leftIndex];
+  const maxTextureX = normalizedUV[rightIndex];
+  const minTextureY = normalizedUV[topIndex];
+  const maxTextureY = normalizedUV[bottomIndex];
 
   if (Math.fround(minOutputX[1] - minTextureX[0]) === Math.fround(maxOutputX[1] - maxTextureX[0])
       && Math.fround(minOutputX[0] + minTextureX[1]) === Math.fround(maxOutputX[0] + maxTextureX[1])
@@ -149,11 +149,11 @@ const readShape = (buffer, textures) => {
     slices.push({
       isSlice,
       textureId,
-      textureCoordinates: uv,
+      uv,
       rotationAngle,
       outputCoordinates: xy.map((c) => [Math.round(c[0] * size), Math.round(c[1] * size)]),
-      textureRegion: uvRegion,
-      outputRegion: realXyRegion,
+      uvRegion,
+      xyRegion: realXyRegion,
     });
   }
 
@@ -166,20 +166,20 @@ const readShape = (buffer, textures) => {
 };
 
 const extractColor = async (exportId, sliceIndex, slice, textures) => {
-  // Check if textureCoordinates[0] !== textureCoordinates[1]
-  const isHorizontalGradient = slice.textureCoordinates[0][0] !== slice.textureCoordinates[1][0]
-    || slice.textureCoordinates[0][1] !== slice.textureCoordinates[1][1];
+  // Check if uv[0] !== uv[1]
+  const isHorizontalGradient = slice.uv[0][0] !== slice.uv[1][0]
+    || slice.uv[0][1] !== slice.uv[1][1];
 
-  const color1Position = slice.textureCoordinates[0];
+  const color1Position = slice.uv[0];
   const color2Position = isHorizontalGradient
-    ? slice.textureCoordinates[1]
-    : slice.textureCoordinates[2];
+    ? slice.uv[1]
+    : slice.uv[2];
 
   const texture = textures[slice.textureId];
 
   const extractedShape = await imageUtils.createShapeWithColor(
     slice.outputCoordinates,
-    slice.outputRegion,
+    slice.xyRegion,
     texture.pixels.slice(
       texture.channels * (color1Position[1] * texture.width + color1Position[0]),
       texture.channels * (color1Position[1] * texture.width + color1Position[0]) + texture.channels,
@@ -202,10 +202,10 @@ const extractColor = async (exportId, sliceIndex, slice, textures) => {
 };
 
 const getShapeRegion = (slices) => {
-  const left = Math.min(...slices.map((slice) => slice.outputRegion.left));
-  const right = Math.max(...slices.map((slice) => slice.outputRegion.right));
-  const top = Math.min(...slices.map((slice) => slice.outputRegion.top));
-  const bottom = Math.max(...slices.map((slice) => slice.outputRegion.bottom));
+  const left = Math.min(...slices.map((slice) => slice.xyRegion.left));
+  const right = Math.max(...slices.map((slice) => slice.xyRegion.right));
+  const top = Math.min(...slices.map((slice) => slice.xyRegion.top));
+  const bottom = Math.max(...slices.map((slice) => slice.xyRegion.bottom));
 
   return {
     left,
@@ -265,8 +265,8 @@ const extractShape = async (filename, resource, textures, texturesSharp) => {
         width: r.width,
         height: r.height,
       },
-      left: resource.slices[r.sliceIndex].outputRegion.left - shapeRegion.left,
-      top: resource.slices[r.sliceIndex].outputRegion.top - shapeRegion.top,
+      left: resource.slices[r.sliceIndex].xyRegion.left - shapeRegion.left,
+      top: resource.slices[r.sliceIndex].xyRegion.top - shapeRegion.top,
     })));
 
   await shape.clone().png().toFile(`out/${filename}-shape${resource.exportId}.png`);
