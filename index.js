@@ -3,11 +3,27 @@ const fs = require('fs');
 require('./src/sc/scBuffer');
 const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
+const pLimit = require('p-limit');
 const { readScFile } = require('./src/sc/scFormat');
 const logger = require('./logger');
 const lzham = require('./src/lzham');
 
 const { argv } = yargs(hideBin(process.argv));
+
+const getAllFilesRecursively = (folder) => {
+  const files = fs.readdirSync(folder, { withFileTypes: true });
+  const allFiles = [];
+  files.forEach((file) => {
+    if (file.isDirectory()) {
+      allFiles.push(...getAllFilesRecursively(`${folder}/${file.name}`));
+    }
+    if (!file.name.endsWith('_tex.sc')) {
+      allFiles.push(`${folder}/${file.name}`);
+    }
+  });
+
+  return allFiles;
+};
 
 const main = async () => {
   await lzham.init();
@@ -19,22 +35,19 @@ const main = async () => {
   folders.forEach((folder) => {
     // fs.rmSync(folder, { recursive: true });
     // fs.mkdirSync(folder, { recursive: true });
-    const scFiles = fs.readdirSync(folder);
-    scFiles.forEach((scFile) => {
-      if (!scFile.endsWith('_tex.sc')) {
-        filesToExtract.push(`${folder}/${scFile}`);
-      }
-    });
+    filesToExtract.push(...getAllFilesRecursively(folder));
   });
 
   if (fs.existsSync('out')) {
     fs.rmSync('out', { recursive: true });
   }
 
+  const limit = pLimit(5);
+
   filesToExtract.forEach((scFile) => {
     fs.mkdirSync(`out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
     fs.mkdirSync(`sc_out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
-    promises.push(readScFile(`${scFile.substring(0, scFile.indexOf('.sc'))}`));
+    promises.push(limit(() => readScFile(`${scFile.substring(0, scFile.indexOf('.sc'))}`)));
   });
 
   // const sharp = require('sharp');
