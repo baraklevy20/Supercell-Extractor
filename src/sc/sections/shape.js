@@ -94,13 +94,6 @@ const readShape = (buffer, textures) => {
       continue;
     }
 
-    if (tag === 0x11) {
-      console.warn('Unknown tag in shape: 0x11');
-      buffer.readBuffer(tagLength);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
     if (tag > 0x16) {
       console.warn('Unsupported tag in shape: ', tag);
       buffer.readBuffer(tagLength);
@@ -121,9 +114,17 @@ const readShape = (buffer, textures) => {
 
     const uv = [];
     for (let j = 0; j < numberOfCoordinates; j += 1) {
-      const u = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].width);
-      const v = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].height);
-      uv.push([u, v]);
+      const u = buffer.readUInt16LE();
+      const v = buffer.readUInt16LE();
+
+      if (tag === 0x16) {
+        uv.push(
+          Math.round(u / 0xffff * textures[textureId].width),
+          Math.round(v / 0xffff * textures[textureId].height),
+        );
+      } else {
+        uv.push([Math.round(u), Math.round(v)]);
+      }
     }
 
     const xyRegion = getRegion(xy);
