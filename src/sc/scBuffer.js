@@ -70,3 +70,7 @@ SmartBuffer.prototype.scReadString = function scReadFunction() {
 
   return this.readString(stringLength, 'utf8');
 };
+
+SmartBuffer.prototype.scReadTwip = function scReadTwip() {
+  return this.readInt32LE() / 20;
+};

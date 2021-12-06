@@ -112,6 +112,7 @@ const readShape = (buffer, textures) => {
     const numberOfCoordinates = tag === 0x4 ? 4 : buffer.readUInt8();
     const xy = [];
 
+    // todo change to readTwip
     for (let j = 0; j < numberOfCoordinates; j += 1) {
       const x = buffer.readInt32LE();
       const y = buffer.readInt32LE();

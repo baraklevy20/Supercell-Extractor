@@ -7,13 +7,13 @@ const readMovieClip = (buffer, tag, tagLength) => {
   if (tag === 0x3) {
     console.warn('Deprecated tag in movie clip: 0x3');
     buffer.readBuffer(tagLength);
-    continue;
+    return;
   }
 
   if (tag === 0xe) {
     console.warn('Unsupported tag in movie clip: 0xE');
     buffer.readBuffer(tagLength);
-    continue;
+    return;
   }
 
   const exportId = buffer.readUInt16LE();
@@ -43,7 +43,7 @@ const readMovieClip = (buffer, tag, tagLength) => {
   for (let i = 0; i < numberOfResources; i += 1) {
     resourcesMapping.push(buffer.readInt16LE());
   }
-  
+
   const blendingTypes = [];
   for (let i = 0; i < numberOfResources; i += 1) {
     const blending = tag === 0xc || tag == 0x23 ? buffer.readUInt8() : 0;
@@ -103,10 +103,10 @@ const readMovieClip = (buffer, tag, tagLength) => {
         break;
       }
       case 0x1f: {
-        v27 = buffer.readInt32LE() * 0.05;
-        v28 = buffer.readInt32LE() * 0.05;
-        v29 = buffer.readInt32LE() * 0.05 + v27;
-        v30 = buffer.readInt32LE() * 0.05 + v28;
+        v27 = buffer.scReadTwip();
+        v28 = buffer.scReadTwip();
+        v29 = buffer.scReadTwip() + v27;
+        v30 = buffer.scReadTwip() + v28;
         // logger.debug(`frame type 0x1f: ${[v27, v28, v29, v30]}`);
         break;
       }

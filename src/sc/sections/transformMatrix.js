@@ -5,8 +5,8 @@ const readTransformMatrix = (buffer) => ({
     buffer.readInt32LE() / 1024,
     buffer.readInt32LE() / 1024,
   ],
-  odx: buffer.readInt32LE() * 0.05,
-  ody: buffer.readInt32LE() * 0.05,
+  odx: buffer.scReadTwip(),
+  ody: buffer.scReadTwip(),
 });
 
 module.exports = {
