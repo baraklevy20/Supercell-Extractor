@@ -88,7 +88,7 @@ const readShape = (buffer, textures) => {
     }
 
     if (tag === 0x6) {
-      console.warn('Deprecated tag in shape: 6');
+      console.warn('Deprecated tag in shape: 0x6');
       buffer.readBuffer(tagLength);
       // eslint-disable-next-line no-continue
       continue;

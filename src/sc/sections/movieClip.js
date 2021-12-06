@@ -3,7 +3,19 @@ const sharp = require('sharp');
 const stream = require('stream');
 const logger = require('../../../logger');
 
-const readMovieClip = (buffer) => {
+const readMovieClip = (buffer, tag, tagLength) => {
+  if (tag === 0x3) {
+    console.warn('Deprecated tag in movie clip: 0x3');
+    buffer.readBuffer(tagLength);
+    continue;
+  }
+
+  if (tag === 0xe) {
+    console.warn('Unsupported tag in movie clip: 0xE');
+    buffer.readBuffer(tagLength);
+    continue;
+  }
+
   const exportId = buffer.readUInt16LE();
   // logger.debug(`MovieClip exportId: ${exportId}`);
 
@@ -31,17 +43,11 @@ const readMovieClip = (buffer) => {
   for (let i = 0; i < numberOfResources; i += 1) {
     resourcesMapping.push(buffer.readInt16LE());
   }
-  // still no idea what this is, but it uses this mapping
-  // i'm pretty sure it might be a bit field (values are 000, 001, 010, 011, 100)
-  // i took 3 values because the game stores it in 3 bits
-  const uint8Mapping = [0, 0, 0, 0x80, 0xC0, 0, 0, 0, 0x40, 0, 0, 0, 0x100];
-  const uint8s = [];
+  
+  const blendingTypes = [];
   for (let i = 0; i < numberOfResources; i += 1) {
-    const num = buffer.readUInt8();
-    uint8s.push(num);
-    if (num !== 0) {
-      // logger.debug(`${resourcesMapping[frameResources[i].resourceIndex]} number uint8: ${uint8Mapping[num]}`);
-    }
+    const blending = tag === 0xc || tag == 0x23 ? buffer.readUInt8() : 0;
+    blendingTypes.push(blending);
   }
 
   const resourcesStrings = [];
@@ -54,7 +60,7 @@ const readMovieClip = (buffer) => {
     // logger.debug(`id: ${resourcesMapping[i]} x string: ${string}`);
   }
 
-  let frameType;
+  let frameTag;
   let currentFrameResourceIndex = 0;
   const frames = [];
 
@@ -64,14 +70,17 @@ const readMovieClip = (buffer) => {
   let v30;
   let something;
 
-  while (frameType !== 0) {
-    frameType = buffer.readUInt8();
-    const frameSize = buffer.readUInt32LE();
+  while (frameTag !== 0) {
+    frameTag = buffer.readUInt8();
+    const frameTagLength = buffer.readUInt32LE();
 
-    if (frameSize === 0) {
+    if (frameTagLength === 0) {
       break;
     }
-    switch (frameType) {
+    switch (frameTag) {
+      case 0x05:
+        console.warn('Deprecated tag in movie clip frame: 0x5');
+        break;
       case 0x0b: {
         const numberOfResourcesInCurrentFrame = buffer.readUInt16LE();
         const frameName = buffer.scReadString();
@@ -117,7 +126,7 @@ const readMovieClip = (buffer) => {
     frameRate,
     resourcesMapping,
     frameCount,
-    uint8s,
+    blendingTypes,
     resourcesStrings,
     v27,
     v28,
@@ -171,14 +180,16 @@ const applyTransforms = async (resource, transformation, colorTransformation) =>
         r: 0, g: 0, b: 0, alpha: 0,
       },
     }).raw().toBuffer({ resolveWithObject: true });
-    transformedSharp = sharp(extended.data,
+    transformedSharp = sharp(
+      extended.data,
       {
         raw: {
           channels: extended.info.channels,
           width: extended.info.width,
           height: extended.info.height,
         },
-      }).affine(transformation.matrix, {
+      },
+    ).affine(transformation.matrix, {
       background: {
         r: 0, g: 0, b: 0, alpha: 0,
       },

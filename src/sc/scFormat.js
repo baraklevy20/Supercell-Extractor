@@ -136,12 +136,14 @@ const readNormalScFile = async (filename, buffer) => {
       if (movieClipsCount > totalMovieClips) {
         logger.error(`${filename} - Reading too many movie clips`);
       }
-      addResource(resources, movieClipSection.readMovieClip(buffer));
+      addResource(resources, movieClipSection.readMovieClip(buffer, tag, tagLength));
     }
 
     if ([0x4, 0x5, 0x6, 0xb, 0x11, 0x16, 0x1f, 0x29].includes(tag)) {
       // Inner tags (tags that are being used in other tags).
       // This should never happen, unless the file is broken.
+      // 0x4, 0x6, 0x11, 0x16 are used in shape
+      // 0x5, 0xb, 0x1f and 0x29 are used in movie clip
       console.warn('Inner tag used outside a tag: ', tag);
       buffer.readBuffer(tagLength);
     }
