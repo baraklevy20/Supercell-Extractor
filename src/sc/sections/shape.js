@@ -74,65 +74,86 @@ const readShape = (buffer, textures) => {
   const numberOfSlices = buffer.readUInt16LE();
   const totalNumberOfVertices = buffer.readUInt16LE();
 
-  let tagLength;
+  let tag;
   const slices = [];
 
   let textureId;
 
-  while (tagLength !== 0) {
-    const tag = buffer.readUInt8();
-    tagLength = buffer.readUInt32LE();
+  while (tag !== 0) {
+    tag = buffer.readUInt8();
+    const tagLength = buffer.readUInt32LE();
 
-    if (tagLength === 0) {
+    if (tag === 0) {
       break;
     }
 
-    textureId = buffer.readUInt8();
-    const numberOfVertices = buffer.readUInt8();
-    const outputCoordinates = [];
+    if (tag === 0x6) {
+      console.warn('Deprecated tag in shape: 6');
+      buffer.readBuffer(tagLength);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
 
-    for (let j = 0; j < numberOfVertices; j += 1) {
+    if (tag === 0x11) {
+      console.warn('Unknown tag in shape: 0x11');
+      buffer.readBuffer(tagLength);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    if (tag > 0x16) {
+      console.warn('Unsupported tag in shape: ', tag);
+      buffer.readBuffer(tagLength);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+
+    textureId = buffer.readUInt8();
+    const numberOfCoordinates = tag === 0x4 ? 4 : buffer.readUInt8();
+    const xy = [];
+
+    for (let j = 0; j < numberOfCoordinates; j += 1) {
       const x = buffer.readInt32LE();
       const y = buffer.readInt32LE();
-      outputCoordinates.push([x, y]);
+      xy.push([x, y]);
     }
 
-    const textureCoordinates = [];
-    for (let j = 0; j < numberOfVertices; j += 1) {
-      const x = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].width);
-      const y = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].height);
-      textureCoordinates.push([x, y]);
+    const uv = [];
+    for (let j = 0; j < numberOfCoordinates; j += 1) {
+      const u = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].width);
+      const v = Math.round(buffer.readUInt16LE() / 0xffff * textures[textureId].height);
+      uv.push([u, v]);
     }
 
-    const outputRegion = getRegion(outputCoordinates);
-    const textureRegion = getRegion(textureCoordinates);
+    const xyRegion = getRegion(xy);
+    const uvRegion = getRegion(uv);
 
-    const isSlice = textureRegion.left !== textureRegion.right
-      && textureRegion.top !== textureRegion.bottom;
+    const isSlice = uvRegion.left !== uvRegion.right
+      && uvRegion.top !== uvRegion.bottom;
 
     const size = 0.05;
     const rotationAngle = getRotationAngle(
-      outputCoordinates,
-      textureCoordinates,
-      outputRegion,
-      textureRegion,
+      xy,
+      uv,
+      xyRegion,
+      uvRegion,
     );
 
-    const realOutputRegion = {
-      left: Math.round(outputRegion.left * size),
-      right: Math.round(outputRegion.right * size),
-      top: Math.round(outputRegion.top * size),
-      bottom: Math.round(outputRegion.bottom * size),
+    const realXyRegion = {
+      left: Math.round(xyRegion.left * size),
+      right: Math.round(xyRegion.right * size),
+      top: Math.round(xyRegion.top * size),
+      bottom: Math.round(xyRegion.bottom * size),
     };
 
     slices.push({
       isSlice,
       textureId,
-      textureCoordinates,
+      textureCoordinates: uv,
       rotationAngle,
-      outputCoordinates: outputCoordinates.map((c) => [Math.round(c[0] * size), Math.round(c[1] * size)]),
-      textureRegion,
-      outputRegion: realOutputRegion,
+      outputCoordinates: xy.map((c) => [Math.round(c[0] * size), Math.round(c[1] * size)]),
+      textureRegion: uvRegion,
+      outputRegion: realXyRegion,
     });
   }
 
