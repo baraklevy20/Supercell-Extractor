@@ -82,7 +82,7 @@ const readNormalScFile = async (filename, buffer) => {
     exports[exportsIds[i]].push(exportName);
   }
 
-  let blockType;
+  let tag;
   let i = 0;
 
   let hasExternalTexFile = false;
@@ -92,100 +92,125 @@ const readNormalScFile = async (filename, buffer) => {
   let hasHighResTexFile = true;
   let textureBuffer;
 
-  while (blockType !== 0) {
-    blockType = buffer.readUInt8();
-    const blockSize = buffer.readUInt32LE();
+  while (tag !== 0) {
+    tag = buffer.readUInt8();
+    const tagLength = buffer.readUInt32LE();
 
-    if (blockType === 0) {
-      break;
-    }
-
-    switch (blockType) {
-      case 0x01:
-      case 0x10:
-      case 0x18:
-      case 0x1c:
-      case 0x1d:
-      case 0x22:
-        if (!textureBuffer) {
-          // eslint-disable-next-line no-await-in-loop
-          textureBuffer = await getTextureBuffer(
-            buffer,
-            filename,
-            hasExternalTexFile,
-            hasHighResTexFile,
-            hasLowResTexFile,
-          );
-        }
-        if (textures.length >= totalTextures) {
-          logger.error(`${filename} - Reading too many textures`);
-        }
-
-        textures.push(textureSection.readTexture(
+    // The second set of tags are handled a bit differently, not sure how
+    if ([0x1, 0x10, 0x1c, 0x1d, 0x22].includes(tag) || [0x13, 0x18, 0x1b].includes(tag)) {
+      if (!textureBuffer) {
+        // eslint-disable-next-line no-await-in-loop
+        textureBuffer = await getTextureBuffer(
           buffer,
-          textureBuffer,
-          blockType,
           filename,
-          textures.length,
-        ));
-        break;
-      case 0x17:
-        hasLowResTexFile = false;
-        break;
-      case 0x1a:
-        hasExternalTexFile = true;
-        break;
-      case 0x1e:
-        hasHighResTexFile = false;
-        break;
-      case 0x07:
-      case 0x0f:
-      case 0x14:
-      case 0x15:
-      case 0x19:
-      case 0x21:
-      case 0x2c:
-        textFieldsCount += 1;
-        if (textFieldsCount > totalTextFields) {
-          logger.error(`${filename} - Reading too many text fields`);
-        }
-        addResource(resources, textFieldSection.readTextField(buffer, blockType));
-        break;
-      case 0x08:
-        transformMatrices.push(transformMatrixSection.readTransformMatrix(buffer));
-        break;
-      case 0x09:
-        colorTransforms.push(colorVariationSection.readColorTransform(buffer));
-        break;
-      case 0x03:
-      case 0x0a:
-      case 0x0c:
-      case 0x0e:
-      case 0x23:
-        movieClipsCount += 1;
-        if (movieClipsCount > totalMovieClips) {
-          logger.error(`${filename} - Reading too many movie clips`);
-        }
-        addResource(resources, movieClipSection.readMovieClip(buffer));
-        break;
-      case 0x02:
-      case 0x12:
-        shapesCount += 1;
-        if (shapesCount > totalShapes) {
-          logger.error(`${filename} - Reading too many shapes`);
-        }
-
-        addResource(resources, shapeSection.readShape(buffer, textures));
-        break;
-      default: {
-        const block = buffer.readBuffer(blockSize);
-        console.log(
-          `${i} Block type: ${blockType.toString(
-            16,
-          )}. Size: ${blockSize}. Data: ${block.slice(0, 20).toString('hex')}`,
+          hasExternalTexFile,
+          hasHighResTexFile,
+          hasLowResTexFile,
         );
       }
+
+      if (textures.length >= totalTextures) {
+        logger.error(`${filename} - Reading too many textures`);
+      }
+
+      textures.push(textureSection.readTexture(
+        buffer,
+        textureBuffer,
+        tag,
+        filename,
+        textures.length,
+      ));
     }
+
+    if ([0x2, 0x12].includes(tag)) {
+      shapesCount += 1;
+      if (shapesCount > totalShapes) {
+        logger.error(`${filename} - Reading too many shapes`);
+      }
+
+      addResource(resources, shapeSection.readShape(buffer, textures));
+    }
+
+    if ([0x3, 0xa, 0xc, 0xe, 0x23].includes(tag)) {
+      movieClipsCount += 1;
+      if (movieClipsCount > totalMovieClips) {
+        logger.error(`${filename} - Reading too many movie clips`);
+      }
+      addResource(resources, movieClipSection.readMovieClip(buffer));
+    }
+
+    if ([0x4, 0x5, 0x6, 0xb, 0x11, 0x16, 0x1f, 0x29].includes(tag)) {
+      // Inner tags (tags that are being used in other tags).
+      // This should never happen, unless the file is broken.
+      console.warn('Inner tag used outside a tag: ', tag);
+      buffer.readBuffer(tagLength);
+    }
+
+    if ([0x7, 0xf, 0x14, 0x15, 0x19, 0x21, 0x2b, 0x2c].includes(tag)) {
+      textFieldsCount += 1;
+      if (textFieldsCount > totalTextFields) {
+        logger.error(`${filename} - Reading too many text fields`);
+      }
+      addResource(resources, textFieldSection.readTextField(buffer, tag));
+    }
+
+    if (tag === 0x8) {
+      transformMatrices.push(transformMatrixSection.readTransformMatrix(buffer));
+    }
+
+    if (tag === 0x9) {
+      colorTransforms.push(colorVariationSection.readColorTransform(buffer));
+    }
+
+    if (tag === 0xd) {
+      // timeline indices
+    }
+
+    if (tag === 0x17) {
+      hasLowResTexFile = false;
+    }
+
+    if (tag === 0x1a) {
+      hasExternalTexFile = true;
+    }
+
+    if (tag === 0x1e) {
+      hasHighResTexFile = false;
+    }
+
+    if (tag === 0x20) {
+      console.warn('Unknown tag: ', tag);
+      buffer.readBuffer(tagLength);
+    }
+
+    if (tag === 0x24) {
+      console.warn('Unknown tag: ', tag);
+      buffer.readBuffer(tagLength);
+    }
+
+    if (tag === 0x25) {
+      console.warn('Unknown tag: ', tag);
+      buffer.readBuffer(tagLength);
+    }
+
+    if ([0x26, 0x27, 0x28].includes(tag)) {
+      console.warn('Unknown tag: ', tag);
+      buffer.readBuffer(tagLength);
+    }
+
+    if (tag === 0x2a) {
+      console.warn('Unknown tag: ', tag);
+      buffer.readBuffer(tagLength);
+    }
+
+    if (tag > 0x2c) {
+      const tagContent = buffer.readBuffer(tagLength);
+      console.log(
+        `Unsupported tag: ${tag.toString(16)}.
+        Length: ${tagLength}. Data: ${tagContent.slice(0, 20).toString('hex')}`,
+      );
+    }
+
     i += 1;
   }
 
