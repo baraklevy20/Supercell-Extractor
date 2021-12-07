@@ -118,10 +118,10 @@ const readShape = (buffer, textures) => {
       const v = buffer.readUInt16LE();
 
       if (tag === 0x16) {
-        uv.push(
+        uv.push([
           Math.round(u / 0xffff * textures[textureId].width),
           Math.round(v / 0xffff * textures[textureId].height),
-        );
+        ]);
       } else {
         uv.push([Math.round(u), Math.round(v)]);
       }
