@@ -72,5 +72,5 @@ SmartBuffer.prototype.scReadString = function scReadFunction() {
 };
 
 SmartBuffer.prototype.scReadTwip = function scReadTwip() {
-  return this.readInt32LE() / 20;
+  return Math.floor(this.readInt32LE() / 20);
 };
