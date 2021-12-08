@@ -42,7 +42,7 @@ const main = async () => {
     fs.rmSync('out', { recursive: true });
   }
 
-  const limit = pLimit(5);
+  const limit = pLimit(2);
 
   filesToExtract.forEach((scFile) => {
     fs.mkdirSync(`out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
