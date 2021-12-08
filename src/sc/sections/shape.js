@@ -3,51 +3,55 @@ const pLimit = require('p-limit');
 const imageUtils = require('../../imageUtils');
 const logger = require('../../../logger');
 
-const getRotationAngle = (outputCoordinates, uv, xyRegion, uvRegion) => {
-  const normalizedOutputCoordinates = outputCoordinates.map((c) => [
-    c[0] / (xyRegion.width),
-    c[1] / (xyRegion.height),
-  ]);
-  const normalizedUV = uv.map((c) => [
-    c[0] / (uvRegion.width),
-    c[1] / (uvRegion.height),
-  ]);
-
-  const leftIndex = outputCoordinates.findIndex(((c) => c[0] === xyRegion.left));
-  const rightIndex = outputCoordinates.findIndex(((c) => c[0] === xyRegion.right));
-  const topIndex = outputCoordinates.findIndex(((c) => c[1] === xyRegion.top));
-  const bottomIndex = outputCoordinates.findIndex(((c) => c[1] === xyRegion.bottom));
-
-  const minOutputX = normalizedOutputCoordinates[leftIndex];
-  const maxOutputX = normalizedOutputCoordinates[rightIndex];
-  const minOutputY = normalizedOutputCoordinates[topIndex];
-  const maxOutputY = normalizedOutputCoordinates[bottomIndex];
-  const minTextureX = normalizedUV[leftIndex];
-  const maxTextureX = normalizedUV[rightIndex];
-  const minTextureY = normalizedUV[topIndex];
-  const maxTextureY = normalizedUV[bottomIndex];
-
-  if (Math.fround(minOutputX[1] - minTextureX[0]) === Math.fround(maxOutputX[1] - maxTextureX[0])
-      && Math.fround(minOutputX[0] + minTextureX[1]) === Math.fround(maxOutputX[0] + maxTextureX[1])
-      && Math.fround(minOutputY[1] - minTextureY[0]) === Math.fround(maxOutputY[1] - maxTextureY[0])
-      && Math.fround(minOutputY[0] + minTextureY[1]) === Math.fround(maxOutputY[0] + maxTextureY[1])
-  ) {
-    return 90;
-  } if (Math.fround(minOutputX[1] + minTextureX[0]) === Math.fround(maxOutputX[1] + maxTextureX[0])
-      && Math.fround(minOutputX[0] - minTextureX[1]) === Math.fround(maxOutputX[0] - maxTextureX[1])
-      && Math.fround(minOutputY[1] + minTextureY[0]) === Math.fround(maxOutputY[1] + maxTextureY[0])
-      && Math.fround(minOutputY[0] - minTextureY[1]) === Math.fround(maxOutputY[0] - maxTextureY[1])
-  ) {
-    return -90;
-  } if (Math.fround(minOutputX[0] - minTextureX[0]) === Math.fround(maxOutputX[0] - maxTextureX[0])
-      && Math.fround(minOutputX[1] + minTextureX[1]) === Math.fround(maxOutputX[1] + maxTextureX[1])
-      && Math.fround(minOutputY[0] - minTextureY[0]) === Math.fround(maxOutputY[0] - maxTextureY[0])
-      && Math.fround(minOutputY[1] + minTextureY[1]) === Math.fround(maxOutputY[1] + maxTextureY[1])
-  ) {
-    return 180;
+const isClockwise = (coords) => {
+  let sum = 0;
+  for (let i = 0; i < coords.length; i += 1) {
+    const current = coords[i];
+    const next = coords[(i + 1) % coords.length];
+    sum += (next[0] - current[0]) * (next[1] + current[1]);
   }
 
-  return 0;
+  return sum < 0;
+};
+
+const getTextureMapping = (xy, uv) => {
+  const rad2Deg = (rad) => rad * (180 / Math.PI);
+
+  // cw = clockwise. ccw = counterclockwise
+  const isXYClockwise = isClockwise(xy);
+  const isUVClockwise = isClockwise(uv);
+
+  // If xy is cw and uv is ccw (or vice versa), the image is mirrored
+  const isMirrored = isXYClockwise !== isUVClockwise;
+
+  // If the texture is mirrored, we'll flip xy or uv (the ccw one) so that both will be cw
+  const mirroredXY = isMirrored && !isXYClockwise ? xy.map((e) => [-e[0], e[1]]) : xy;
+  const mirroredUV = isMirrored && !isUVClockwise ? uv.map((e) => [-e[0], e[1]]) : uv;
+
+  // Get the angle from xy0 to xy1 and uv0 to uv1
+  const dx = mirroredXY[1][0] - mirroredXY[0][0];
+  const dy = mirroredXY[1][1] - mirroredXY[0][1];
+  const du = mirroredUV[1][0] - mirroredUV[0][0];
+  const dv = mirroredUV[1][1] - mirroredUV[0][1];
+  // A trick to always have a positive angle (-90 + 360 => 270) and less than 360
+  const xyAngle = (rad2Deg(Math.atan2(dy, dx)) + 360) % 360;
+  const uvAngle = (rad2Deg(Math.atan2(dv, du)) + 360) % 360;
+
+  // The rotation angle is the difference
+  const angle = (xyAngle - uvAngle + 360) % 360;
+
+  // Round the angle to the nearest 90 degrees angle
+  let nearest90Multiple = Math.round(angle / 90) * 90;
+
+  // We now flip it back again
+  if (isMirrored && !isUVClockwise && (angle === 90 || angle === 270)) {
+    nearest90Multiple += 180;
+  }
+
+  return [
+    nearest90Multiple,
+    isMirrored,
+  ];
 };
 
 const getRegion = (coordinates) => {
@@ -105,10 +109,10 @@ const readShape = (buffer, textures) => {
     const numberOfCoordinates = tag === 0x4 ? 4 : buffer.readUInt8();
     const xy = [];
 
-    // todo change to readTwip
     for (let j = 0; j < numberOfCoordinates; j += 1) {
-      const x = buffer.readInt32LE();
-      const y = buffer.readInt32LE();
+      const x = buffer.scReadTwip();
+      const y = buffer.scReadTwip();
+
       xy.push([x, y]);
     }
 
@@ -133,29 +137,17 @@ const readShape = (buffer, textures) => {
     const isSlice = uvRegion.left !== uvRegion.right
       && uvRegion.top !== uvRegion.bottom;
 
-    const size = 0.05;
-    const rotationAngle = getRotationAngle(
-      xy,
-      uv,
-      xyRegion,
-      uvRegion,
-    );
-
-    const realXyRegion = {
-      left: Math.round(xyRegion.left * size),
-      right: Math.round(xyRegion.right * size),
-      top: Math.round(xyRegion.top * size),
-      bottom: Math.round(xyRegion.bottom * size),
-    };
+    const [rotationAngle, isMirrored] = getTextureMapping(xy, uv);
 
     slices.push({
       isSlice,
       textureId,
+      xy,
+      xyRegion,
       uv,
-      rotationAngle,
-      outputCoordinates: xy.map((c) => [Math.round(c[0] * size), Math.round(c[1] * size)]),
       uvRegion,
-      xyRegion: realXyRegion,
+      rotationAngle,
+      isMirrored,
     });
   }
 
@@ -180,7 +172,7 @@ const extractColor = async (exportId, sliceIndex, slice, textures) => {
   const texture = textures[slice.textureId];
 
   const extractedShape = await imageUtils.createShapeWithColor(
-    slice.outputCoordinates,
+    slice.xy,
     slice.xyRegion,
     texture.pixels.slice(
       texture.channels * (color1Position[1] * texture.width + color1Position[0]),

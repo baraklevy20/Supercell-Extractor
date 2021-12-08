@@ -35,8 +35,9 @@ const extractSlice = async (exportId, sliceIndex, slice, texture) => {
       height: slice.uvRegion.height,
     },
   })
-    .rotate(slice.rotationAngle)
     .resize(scaleWidth, scaleHeight, { fit: 'fill' })
+    .rotate(slice.rotationAngle)
+    .flop(slice.isMirrored)
     .toBuffer();
 
   return {
@@ -65,7 +66,7 @@ const applyColorTransformation = (pixels, colorTransformation) => {
 };
 
 const createShapeWithColor = async (
-  outputCoordinates,
+  xy,
   xyRegion,
   color1,
   color2,
@@ -75,7 +76,7 @@ const createShapeWithColor = async (
   const width = xyRegion.right - xyRegion.left + 1;
   const height = xyRegion.bottom - xyRegion.top + 1;
 
-  const sliceString = outputCoordinates.reduce((acc, vertex) => `${acc} ${vertex[0] - xyRegion.left},${vertex[1] - xyRegion.top}`, '');
+  const sliceString = xy.reduce((acc, vertex) => `${acc} ${vertex[0] - xyRegion.left},${vertex[1] - xyRegion.top}`, '');
 
   const sliceShape = sharp(Buffer.from(`<svg width="${width}" height="${height}">
         <linearGradient
