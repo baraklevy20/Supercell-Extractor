@@ -17,8 +17,8 @@ const readTextField = (buffer, tag) => {
   const top = buffer.readInt16LE();
   const right = buffer.readInt16LE();
   const bottom = buffer.readInt16LE();
-  const isUppercase = !!buffer.readUInt8();
-  const unknownText2 = buffer.scReadString();
+  const unk = !!buffer.readUInt8();
+  const placeholderText = buffer.scReadString();
 
   let unknownFlag5;
   let outlineColor;
@@ -43,7 +43,7 @@ const readTextField = (buffer, tag) => {
     exportId,
     type: 'textField',
     fontName,
-    text2: unknownText2,
+    placeholderText,
     fontColorInARGB,
     isBold,
     isItalic,
@@ -54,7 +54,7 @@ const readTextField = (buffer, tag) => {
     transform1: top,
     transform2: right,
     transform3: bottom,
-    isUppercase,
+    unk,
     flag5: unknownFlag5,
     outlineColor,
     c14,
