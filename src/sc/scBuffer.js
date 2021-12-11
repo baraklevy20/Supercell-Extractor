@@ -8,11 +8,14 @@ const lzham = require('../lzham');
 SmartBuffer.prototype.scDecompress = async function scDecompress() {
   const magic = this.readString(2);
   let version = this.readUInt32BE();
+  let endOffset;
   const isNormalScFile = magic === 'SC' && version <= 100;
 
   if (isNormalScFile) {
     if (version === 4) {
       version = this.readUInt32BE();
+      endOffset = this.internalBuffer.indexOf('START');
+      // The rest of the file seems to contain export names after 'START'
     }
 
     const hashLength = this.readUInt32BE();
@@ -24,7 +27,7 @@ SmartBuffer.prototype.scDecompress = async function scDecompress() {
 
   if (version >= 2) {
     return SmartBuffer.fromBuffer(Buffer.from(
-      fzstd.decompress(this.internalBuffer.slice(this.readOffset)),
+      fzstd.decompress(this.internalBuffer.slice(this.readOffset, endOffset)),
     ));
   }
 
@@ -36,7 +39,11 @@ SmartBuffer.prototype.scDecompress = async function scDecompress() {
     && first9Bytes[2] === 0
     && first9Bytes[8] < 0x20) {
     let compressedData = this.internalBuffer.slice(this.readOffset);
-    compressedData = [...compressedData.slice(0, 9), 0, 0, 0, 0, ...compressedData.slice(9)];
+    compressedData = [
+      ...compressedData.slice(0, 9), // lzma props (5 bytes) and uncompressed size (4 bytes)
+      0, 0, 0, 0, // uncompressed size needs to be 64-bits (8 bytes) so we need to add 4 bytes
+      ...compressedData.slice(9, endOffset),
+    ];
     const decompressedData = await lzma.decompress(compressedData);
     return SmartBuffer.fromBuffer(Buffer.from(decompressedData));
   }
@@ -45,7 +52,10 @@ SmartBuffer.prototype.scDecompress = async function scDecompress() {
     const dictSizeLog2 = this.readUInt8();
     const outputSize = this.readInt32LE();
     return SmartBuffer.fromBuffer(Buffer.from(
-      lzham.decompress(this.readBuffer(), { dictSizeLog2, outputSize }),
+      lzham.decompress(
+        this.internalBuffer.slice(this.readOffset, endOffset),
+        { dictSizeLog2, outputSize },
+      ),
     ));
   }
 
