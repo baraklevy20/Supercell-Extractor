@@ -7,13 +7,13 @@ const readMovieClip = (buffer, tag, tagLength) => {
   if (tag === 0x3) {
     console.warn('Deprecated tag in movie clip: 0x3');
     buffer.readBuffer(tagLength);
-    return;
+    return null;
   }
 
   if (tag === 0xe) {
     console.warn('Unsupported tag in movie clip: 0xE');
     buffer.readBuffer(tagLength);
-    return;
+    return null;
   }
 
   const exportId = buffer.readUInt16LE();
@@ -62,13 +62,18 @@ const readMovieClip = (buffer, tag, tagLength) => {
 
   let frameTag;
   let currentFrameResourceIndex = 0;
-  const frames = [];
 
-  let v27;
-  let v28;
-  let v29;
-  let v30;
-  let something;
+  const movieClip = {
+    exportId,
+    type: 'movieClip',
+    frameRate,
+    resourcesMapping,
+    frameCount,
+    blendingTypes,
+    resourcesStrings,
+  };
+
+  movieClip.frames = [];
 
   while (frameTag !== 0) {
     frameTag = buffer.readUInt8();
@@ -94,7 +99,7 @@ const readMovieClip = (buffer, tag, tagLength) => {
           currentFrameResources.push(frameResources[currentFrameResourceIndex + i]);
         }
 
-        frames.push({
+        movieClip.frames.push({
           frameName,
           frameResources: currentFrameResources,
         });
@@ -103,37 +108,22 @@ const readMovieClip = (buffer, tag, tagLength) => {
         break;
       }
       case 0x1f: {
-        v27 = buffer.scReadTwip();
-        v28 = buffer.scReadTwip();
-        v29 = buffer.scReadTwip() + v27;
-        v30 = buffer.scReadTwip() + v28;
-        // logger.debug(`frame type 0x1f: ${[v27, v28, v29, v30]}`);
+        movieClip.nineSliceRegion = {
+          left: buffer.scReadTwip(),
+          top: buffer.scReadTwip(),
+          right: buffer.scReadTwip(),
+          bottom: buffer.scReadTwip(),
+        };
         break;
       }
       case 0x29: { // only happens in effects_brawler i think
-        something = buffer.readUInt8();
-        // logger.debug(`frame type 0x29: ${something}`);
+        movieClip.something = buffer.readUInt8();
+        // console.log(`frame type 0x29: ${movieClip.something}`);
         break;
       }
       default:
     }
   }
-
-  const movieClip = {
-    exportId,
-    type: 'movieClip',
-    frames,
-    frameRate,
-    resourcesMapping,
-    frameCount,
-    blendingTypes,
-    resourcesStrings,
-    v27,
-    v28,
-    v29,
-    v30,
-    something,
-  };
 
   // console.log({ ...movieClip, frames: movieClip.frames.map((f) => f.frameName) });
 
