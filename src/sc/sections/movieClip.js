@@ -203,6 +203,26 @@ const compositeFrame = async (parts, transformations) => {
   const right = Math.max(0, ...transformations.map((t, i) => parts[i].info.width + (t ? t.odx : 0)));
   const bottom = Math.max(0, ...transformations.map((t, i) => parts[i].info.height + (t ? t.ody : 0)));
 
+  if (parts.length === 1) {
+    const t = transformations[0];
+    return sharp(parts[0].data, {
+      raw: {
+        channels: 4,
+        width: parts[0].info.width,
+        height: parts[0].info.height,
+      },
+    })
+      .extend({
+        top: t && t.ody > 0 ? Math.ceil(t.ody) : 0,
+        bottom: t && t.ody < 0 ? Math.ceil(-t.ody) : 0,
+        left: t && t.odx > 0 ? Math.ceil(t.odx) : 0,
+        right: t && t.odx < 0 ? Math.ceil(-t.odx) : 0,
+        background: {
+          r: 0, g: 0, b: 0, alpha: 0,
+        },
+      })
+      .toBuffer({ resolveWithObject: true });
+  }
   const finalFrame = sharp({
     create: {
       channels: 4,
