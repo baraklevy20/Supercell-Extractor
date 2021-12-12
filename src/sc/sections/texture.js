@@ -64,16 +64,16 @@ const readPixel = (buffer, pixelFormatIndex) => {
     case 'GL_UNSIGNED_SHORT_5_6_5':
       // [5 bits from first byte, 3 from first byte and 3 from second byte, 5 bits from second byte]
       actualBytes = [
-        Math.floor(((bytesRead[1] & 0b11111000) >> 3) * 255 / 31),
-        Math.floor((((bytesRead[1] & 0b111) << 3) | ((bytesRead[0] & 0b11100000) >> 5)) * 255 / 63),
+        Math.floor((bytesRead[1] >> 3) * 255 / 31),
+        Math.floor((((bytesRead[1] & 0b111) << 3) | (bytesRead[0] >> 5)) * 255 / 63),
         Math.floor((bytesRead[0] & 0b00011111) * 255 / 31),
       ];
       break;
     case 'GL_UNSIGNED_SHORT_4_4_4_4':
       actualBytes = [
-        ((bytesRead[1] & 0b11110000) >> 4) * 17,
+        (bytesRead[1] >> 4) * 17,
         (bytesRead[1] & 0b00001111) * 17,
-        ((bytesRead[0] & 0b11110000) >> 4) * 17,
+        (bytesRead[0] >> 4) * 17,
         (bytesRead[0] & 0b00001111) * 17,
       ];
       break;
