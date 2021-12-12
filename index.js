@@ -16,7 +16,7 @@ const getAllFilesRecursively = (folder) => {
   files.forEach((file) => {
     if (file.isDirectory()) {
       allFiles.push(...getAllFilesRecursively(`${folder}/${file.name}`));
-    } else if (!file.name.endsWith('_tex.sc')) {
+    } else if (file.name.endsWith('.sc') && !file.name.endsWith('_tex.sc')) {
       allFiles.push(`${folder}/${file.name}`);
     }
   });
