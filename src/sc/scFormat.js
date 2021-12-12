@@ -227,6 +227,7 @@ const readNormalScFile = async (filename, buffer) => {
 };
 
 const readScFile = async (fileName) => {
+  console.log(`Extracting ${fileName}`);
   const scFileContent = await readNormalScFile(fileName, await getScBuffer(fileName));
   const startTime = new Date().getTime();
   const repeat = 1;

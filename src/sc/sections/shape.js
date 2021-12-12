@@ -268,9 +268,7 @@ const extractShape = async (filename, resource, textures, texturesSharp) => {
   return {
     type: 'shape',
     exportId: resource.exportId,
-    sharp: shape,
-    width: shapeRegion.width,
-    height: shapeRegion.height,
+    sharp: await shape.raw().toBuffer({ resolveWithObject: true }),
   };
 };
 
