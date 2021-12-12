@@ -77,10 +77,14 @@ const readPixel = (buffer, pixelFormatIndex) => {
         (bytesRead[0] & 0b00001111) * 17,
       ];
       break;
-    // Implementation is easy but I need to dig through old versions to find textures
-    // with such pixel formats to test it
     case 'GL_UNSIGNED_SHORT_5_5_5_1':
-      throw Error('Not implemented pixel format');
+      actualBytes = [
+        Math.floor((bytesRead[1] >> 3) * 255 / 31),
+        Math.floor((((bytesRead[1] & 0b111) << 2) | ((bytesRead[0]) >> 6)) * 255 / 31),
+        Math.floor(((bytesRead[0] & 0b00111110) >> 1) * 255 / 31),
+        (bytesRead[0] & 1) * 255,
+      ];
+      break;
     default:
       actualBytes = bytesRead;
   }
