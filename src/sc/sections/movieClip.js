@@ -178,8 +178,8 @@ const applyTransforms = async (sharpObject, transformation, colorTransformation)
 const pushIntoStripStream = (stripStream, frames, maxWidth, pageHeight) => {
   frames.forEach((frame) => {
     const stripBuffer = new Array(maxWidth * pageHeight * 4).fill(0);
-    const left = 0;
-    const top = 0;
+    const left = Math.floor((maxWidth - frame.info.width) / 2);
+    const top = Math.floor((pageHeight - frame.info.height) / 2);
     for (let i = 0; i < frame.info.height; i += 1) {
       for (let j = 0; j < frame.info.width; j += 1) {
         const x = left + j;
