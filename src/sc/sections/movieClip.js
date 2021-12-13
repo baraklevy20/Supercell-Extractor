@@ -197,19 +197,19 @@ const pushIntoStripStream = (stripStream, frames, maxWidth, pageHeight) => {
   stripStream.push(null);
 };
 
-const compositeFrame = async (parts, transformations) => {
-  const left = Math.min(0, ...transformations.map((t) => (t ? t.odx : 0)));
-  const top = Math.min(0, ...transformations.map((t) => (t ? t.ody : 0)));
-  const right = Math.max(0, ...transformations.map((t, i) => parts[i].info.width + (t ? t.odx : 0)));
-  const bottom = Math.max(0, ...transformations.map((t, i) => parts[i].info.height + (t ? t.ody : 0)));
+const compositeFrame = async (images) => {
+  const left = Math.min(0, ...images.map(({ t }) => (t ? t.odx : 0)));
+  const top = Math.min(0, ...images.map(({ t }) => (t ? t.ody : 0)));
+  const right = Math.max(0, ...images.map(({ part, t }) => part.info.width + (t ? t.odx : 0)));
+  const bottom = Math.max(0, ...images.map(({ part, t }) => part.info.height + (t ? t.ody : 0)));
 
-  if (parts.length === 1) {
-    const t = transformations[0];
-    return sharp(parts[0].data, {
+  if (images.length === 1) {
+    const { t } = images[0];
+    return sharp(images[0].part.data, {
       raw: {
         channels: 4,
-        width: parts[0].info.width,
-        height: parts[0].info.height,
+        width: images[0].part.info.width,
+        height: images[0].part.info.height,
       },
     })
       .extend({
@@ -223,6 +223,45 @@ const compositeFrame = async (parts, transformations) => {
       })
       .toBuffer({ resolveWithObject: true });
   }
+
+  // const width = Math.round(right - left);
+  // const height = Math.round(bottom - top);
+  // const pixels = new Uint8Array(width * height * 4);
+  // images.forEach(({ part, t }) => {
+  //   const partLeft = Math.round((t ? t.odx : 0) - left);
+  //   const partTop = Math.round((t ? t.ody : 0) - top);
+
+  //   for (let i = 0; i < part.data.length; i += 4) {
+  //     const x = Math.floor(i / 4) % part.info.width;
+  //     const y = Math.floor(Math.floor(i / 4) / part.info.width);
+  //     const pixel = 4 * (width * (partTop + y) + (partLeft + x));
+
+  //     const a = pixels;
+  //     const b = part.data;
+  //     const newAlpha = a[pixel + 3] / 255 + b[i + 3] / 255 * (1 - a[pixel + 3] / 255);
+  //     pixels[pixel] = (a[pixel] / 255 + b[i] / 255 * (1 - a[pixel + 3] / 255)) / newAlpha * 255;
+  //     pixels[pixel + 1] = (a[pixel + 1] / 255 + b[i + 1] / 255 * (1 - a[pixel + 3] / 255)) / newAlpha * 255;
+  //     pixels[pixel + 2] = (a[pixel + 2] / 255 + b[i + 2] / 255 * (1 - a[pixel + 3] / 255)) / newAlpha * 255;
+  //     pixels[pixel + 3] = newAlpha * 255;
+  //     // if (
+  //     //   pixels[currentPixelIndex] === 0 && pixels[currentPixelIndex + 1] === 0
+  //     //   && pixels[currentPixelIndex + 2] === 0 && pixels[currentPixelIndex + 3] === 0) {
+  //     //   for (let j = 0; j < 4; j += 1) {
+  //     //     pixels[4 * (width * (partTop + y) + (partLeft + x)) + j] = a[i + j];
+  //     //   }
+  //     // }
+  //   }
+  // });
+
+  // return {
+  //   data: pixels,
+  //   info: {
+  //     channels: 4,
+  //     width,
+  //     height,
+  //   },
+  // };
+
   const finalFrame = sharp({
     create: {
       channels: 4,
@@ -232,16 +271,16 @@ const compositeFrame = async (parts, transformations) => {
         r: 0, g: 0, b: 0, alpha: 0,
       },
     },
-  }).composite(parts.map((c, i) => ({
-    input: c.data,
+  }).composite(images.map(({ part, t }) => ({
+    input: part.data,
     raw: {
       channels: 4,
-      width: c.info.width,
-      height: c.info.height,
+      width: part.info.width,
+      height: part.info.height,
     },
     blend: 'over',
-    left: Math.round((transformations[i] ? transformations[i].odx : 0) - left),
-    top: Math.round((transformations[i] ? transformations[i].ody : 0) - top),
+    left: Math.round((t ? t.odx : 0) - left),
+    top: Math.round((t ? t.ody : 0) - top),
   })));
 
   // const blends = ['overlay'];
@@ -286,7 +325,7 @@ const createMovieClip = async (
 ) => {
   const cache = [];
   const movieClip = resources[exportId];
-  movieClip.actualFrameCount = Math.min(100, Math.max(
+  movieClip.actualFrameCount = Math.min(50, Math.max(
     movieClip.frameCount,
     ...movieClip.resourcesMapping.map((rm) => resources[rm].actualFrameCount || 1),
   ));
@@ -294,7 +333,7 @@ const createMovieClip = async (
   for (let i = 0; i < movieClip.actualFrameCount; i += 1) {
     const currentFrame = movieClip.frames[i % movieClip.frames.length];
     const promises = [];
-    const numberOfResources = Math.min(30, currentFrame.frameResources.length);
+    const numberOfResources = Math.min(5, currentFrame.frameResources.length);
     for (let j = 0; j < numberOfResources; j += 1) {
       const frameResources = currentFrame.frameResources[j];
       const resourceExportId = movieClip.resourcesMapping[frameResources.resourceIndex];
@@ -310,12 +349,17 @@ const createMovieClip = async (
       if (!appliedTransform) {
         if (resource.type === 'shape') {
           appliedTransform = applyTransforms(resource.sharp, transform, colorTransform);
+        } else if (resource.type === 'textField') {
+          // appliedTransform = applyTransforms(resource.sharp, transform, colorTransform);
         } else if (resource.type === 'movieClip') {
-          appliedTransform = applyTransforms(
-            resource.finalFrames[i % resource.finalFrames.length],
-            transform,
-            colorTransform,
-          );
+          // todo remove once text fields are used
+          if (resource.finalFrames.length > 0) {
+            appliedTransform = applyTransforms(
+              resource.finalFrames[i % resource.finalFrames.length],
+              transform,
+              colorTransform,
+            );
+          }
         }
         cache[resourceExportId.toString() + i + transform?.matrix?.toString()] = appliedTransform;
       }
@@ -325,15 +369,33 @@ const createMovieClip = async (
 
     const currentFrameComposite = await Promise.all(promises);
 
-    movieClip.finalFrames[i] = await compositeFrame(
-      currentFrameComposite,
-      currentFrameComposite.map(
-        (_, j) => getTransformMatrix(
-          transformMatrices,
-          currentFrame.frameResources[j].transformMatrixIndex,
-        ),
+    if (exportId === 61) {
+      currentFrameComposite.forEach(async (frame, j) => {
+        if (frame) {
+          sharp(frame.data, {
+            raw: {
+              channels: 4,
+              width: frame.info.width,
+              height: frame.info.height,
+            },
+          }).png().toFile(`out/sc/part-${exportId}-${i}-${j}.png`);
+        }
+      });
+    }
+
+    // movieClip.finalFrames[i] = currentFrameComposite[0];
+    const imagesToComposite = currentFrameComposite.map((e, j) => ({
+      part: e,
+      t: getTransformMatrix(
+        transformMatrices,
+        currentFrame.frameResources[j].transformMatrixIndex,
       ),
-    );
+    })).filter((e) => e.part); // todo remove filter once text fields are implemented
+
+    // todo remove filter once text fields are implemented
+    if (imagesToComposite.length > 0) {
+      movieClip.finalFrames.push(await compositeFrame(imagesToComposite));
+    }
   }
 };
 
@@ -370,6 +432,15 @@ const createMovieClips = async (filename, transformMatrices, colorTransforms, re
   // const resource = resources[4];
   // resources = {
   //   0: resources[0],
+  //   1: resources[1],
+  //   2: resources[2],
+  //   4: resources[4],
+  //   5: resources[5],
+  //   6: resources[6],
+  //   8: resources[8],
+  // };
+  // resources = {
+  //   0: resources[0],
   //   2: resources[2],
   //   4: resources[4],
   //   9: resources[9],
@@ -397,7 +468,10 @@ const createMovieClips = async (filename, transformMatrices, colorTransforms, re
         transformMatrices,
         colorTransforms,
       );
-      promises.push(saveAsWebp(resource, exports[resource.exportId], filename));
+      // todo remove once text fields are used
+      if (resource.finalFrames.length > 0) {
+        promises.push(saveAsWebp(resource, exports[resource.exportId], filename));
+      }
     }
   }
 
