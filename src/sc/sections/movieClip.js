@@ -279,8 +279,6 @@ const compositeFrame = async (parts, transformations) => {
 };
 
 const createMovieClip = async (
-  exportName,
-  fileName,
   exportId,
   resources,
   transformMatrices,
@@ -329,7 +327,9 @@ const createMovieClip = async (
       ),
     );
   }
+};
 
+const saveAsWebp = (movieClip, exportName, fileName) => {
   const maxWidth = Math.max(...movieClip.finalFrames.map((f) => f.info.width));
   const pageHeight = Math.max(...movieClip.finalFrames.map((f) => f.info.height));
   const stripStream = new stream.Readable();
@@ -353,7 +353,7 @@ const createMovieClip = async (
 
   return sharpStream
     .clone()
-    .toFile(`out/${fileName}-movieclip-${exportNameString}${exportId}-${movieClip.actualFrameCount}.webp`);
+    .toFile(`out/${fileName}-movieclip-${exportNameString}${movieClip.exportId}-${movieClip.actualFrameCount}.webp`);
 };
 
 const createMovieClips = async (filename, transformMatrices, colorTransforms, resources, exports) => {
@@ -376,19 +376,24 @@ const createMovieClips = async (filename, transformMatrices, colorTransforms, re
   //   0: resources[0],
   //   4: resources[4],
   // };
+
+  const promises = [];
+
   // eslint-disable-next-line no-restricted-syntax
   for (const resource of Object.values(resources)) {
     if (resource.type === 'movieClip') {
       await createMovieClip(
-        exports[resource.exportId],
-        filename,
         resource.exportId,
         resources,
         transformMatrices,
         colorTransforms,
       );
+      promises.push(saveAsWebp(resource, exports[resource.exportId], filename));
     }
   }
+
+  await Promise.allSettled(promises);
+
   logger.info('Finished extracting movie clips');
 };
 
