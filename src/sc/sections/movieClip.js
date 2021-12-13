@@ -325,7 +325,7 @@ const createMovieClip = async (
 ) => {
   const cache = [];
   const movieClip = resources[exportId];
-  movieClip.actualFrameCount = Math.min(50, Math.max(
+  movieClip.actualFrameCount = Math.min(200, Math.max(
     movieClip.frameCount,
     ...movieClip.resourcesMapping.map((rm) => resources[rm].actualFrameCount || 1),
   ));
@@ -344,7 +344,10 @@ const createMovieClip = async (
         frameResources.colorTransformIndex,
       );
 
-      let appliedTransform = cache[resourceExportId.toString() + i + transform?.matrix?.toString()];
+      const cacheKey = resourceExportId.toString()
+        + (resource.type === 'movieClip' ? i % resource.finalFrames.length : '')
+        + transform?.matrix?.toString();
+      let appliedTransform = cache[cacheKey];
 
       if (!appliedTransform) {
         if (resource.type === 'shape') {
@@ -361,7 +364,7 @@ const createMovieClip = async (
             );
           }
         }
-        cache[resourceExportId.toString() + i + transform?.matrix?.toString()] = appliedTransform;
+        cache[cacheKey] = appliedTransform;
       }
 
       promises.push(appliedTransform);
