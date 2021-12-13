@@ -163,7 +163,7 @@ const applyTransforms = async (sharpObject, transformation, colorTransformation)
   let transformedSharp = colorTransformedSharp;
 
   if (transformation) {
-    transformedSharp = await transformedSharp
+    transformedSharp = transformedSharp
       .affine(transformation.matrix, {
         background: {
           r: 0, g: 0, b: 0, alpha: 0,
