@@ -305,7 +305,7 @@ const createMovieClip = async (
         frameResources.colorTransformIndex,
       );
 
-      let appliedTransform = cache[resourceExportId.toString() + transform?.matrix?.toString()];
+      let appliedTransform = cache[resourceExportId.toString() + i + transform?.matrix?.toString()];
 
       if (!appliedTransform) {
         if (resource.type === 'shape') {
@@ -317,7 +317,7 @@ const createMovieClip = async (
             colorTransform,
           );
         }
-        cache[resourceExportId + transform?.matrix] = appliedTransform;
+        cache[resourceExportId.toString() + i + transform?.matrix?.toString()] = appliedTransform;
       }
 
       promises.push(appliedTransform);
