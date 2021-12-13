@@ -284,6 +284,7 @@ const createMovieClip = async (
   transformMatrices,
   colorTransforms,
 ) => {
+  const cache = [];
   const movieClip = resources[exportId];
   movieClip.actualFrameCount = Math.min(100, Math.max(
     movieClip.frameCount,
@@ -304,15 +305,22 @@ const createMovieClip = async (
         frameResources.colorTransformIndex,
       );
 
-      if (resource.type === 'shape') {
-        promises.push(applyTransforms(resource.sharp, transform, colorTransform));
-      } else if (resource.type === 'movieClip') {
-        promises.push(applyTransforms(
-          resource.finalFrames[i % resource.finalFrames.length],
-          transform,
-          colorTransform,
-        ));
+      let appliedTransform = cache[resourceExportId.toString() + transform?.matrix?.toString()];
+
+      if (!appliedTransform) {
+        if (resource.type === 'shape') {
+          appliedTransform = applyTransforms(resource.sharp, transform, colorTransform);
+        } else if (resource.type === 'movieClip') {
+          appliedTransform = applyTransforms(
+            resource.finalFrames[i % resource.finalFrames.length],
+            transform,
+            colorTransform,
+          );
+        }
+        cache[resourceExportId + transform?.matrix] = appliedTransform;
       }
+
+      promises.push(appliedTransform);
     }
 
     const currentFrameComposite = await Promise.all(promises);
