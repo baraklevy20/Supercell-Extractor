@@ -1,5 +1,5 @@
 # Supercell Extractor
-Extract SC files for Brawl Stars, Clash of Clans, Hay Day and Clash Royal.
+Extract SC files for Brawl Stars, Clash of Clans, Hay Day, Clash Royal and any future SC game.
 
 This project is purely for fun. You may not use it to develop a clone to these games or hack the games in any way.
 
