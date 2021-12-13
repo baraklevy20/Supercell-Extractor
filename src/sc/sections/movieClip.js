@@ -366,6 +366,7 @@ const saveAsWebp = (movieClip, exportName, fileName) => {
 
 const createMovieClips = async (filename, transformMatrices, colorTransforms, resources, exports) => {
   logger.info('Extracting movie clips');
+  const t = Date.now();
   // const resource = resources[4];
   // resources = {
   //   0: resources[0],
@@ -400,7 +401,10 @@ const createMovieClips = async (filename, transformMatrices, colorTransforms, re
     }
   }
 
+  console.log(`Movie clip frames generation time: ${Date.now() - t}ms`);
+  const t2 = Date.now();
   await Promise.allSettled(promises);
+  console.log(`Movie clip to webp time: ${Date.now() - t2}ms`);
 
   logger.info('Finished extracting movie clips');
 };
