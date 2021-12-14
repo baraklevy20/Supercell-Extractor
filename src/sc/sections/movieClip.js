@@ -44,10 +44,38 @@ const readMovieClip = (buffer, tag, tagLength) => {
     resourcesMapping.push(buffer.readInt16LE());
   }
 
-  const blendingTypes = [];
+  const blendingFactors = [];
   for (let i = 0; i < numberOfResources; i += 1) {
-    const blending = tag === 0xc || tag == 0x23 ? buffer.readUInt8() : 0;
-    blendingTypes.push(blending);
+    const blending = tag === 0xc || tag === 0x23 ? buffer.readUInt8() : 0;
+
+    // Blending equation is always s+d with the following factors
+    // https://www.cairographics.org/operators/
+    // https://en.wikipedia.org/wiki/Blend_modes
+    const flag = (blending >> 6) & 1; // maybe inverted? (over -> dest_over). could also be invert colors
+    switch (blending & 0x3f) {
+      case 3:
+        // A combination of mix and multiply. if alphaA = 0, take B. if alphaA=1, take AB.
+        blendingFactors.push({ s: 'GL_DST_COLOR', d: 'GL_ONE_MINUS_SRC_ALPHA' });
+        break;
+      case 4:
+        // CAIRO_OPERATOR_SCREEN. Screen
+        blendingFactors.push({ s: 'GL_ONE', d: 'GL_ONE_MINUS_SRC_COLOR' });
+        break;
+      case 8:
+        // CAIRO_OPERATOR_ADD. Linear dodge
+        blendingFactors.push({ s: 'GL_ONE', d: 'GL_ONE' });
+        break;
+      // Not sure about 0xc and 0xf
+      case 0xc:
+      case 0xf: // only god knows. Not even used afaik
+        blendingFactors.push({ s: 'GL_SRC_ALPHA', d: 'GL_ONE_MINUS_SRC_ALPHA' });
+        break;
+      default:
+        // CAIRO_OPERATOR_OVER, A mix.
+        // if alphaA = 0, take B.if alphaA = 1, take A.
+        // Everything in between is a mix of A and B
+        blendingFactors.push({ s: 'GL_ONE', d: 'GL_ONE_MINUS_SRC_ALPHA' });
+    }
   }
 
   const resourcesStrings = [];
@@ -69,7 +97,7 @@ const readMovieClip = (buffer, tag, tagLength) => {
     frameRate,
     resourcesMapping,
     frameCount,
-    blendingTypes,
+    blendingFactors,
     resourcesStrings,
   };
 
