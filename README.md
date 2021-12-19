@@ -12,6 +12,8 @@ The tool extracts many more resources than any other SC extraction tool. Normall
 
 The tool also does it much quicker than any other tool, about twice as fast as the currently fastest tool - https://github.com/AriusX7/sc-extract. This is due to the high performance library `SharpJS`.
 
+The tool also supports all compressions I've came across - LZMA, LZHAM, ZSTD, beta version compression and newest version compression (version >= 4, which isn't supported in any other tool afaik), on all platforms (Windows, Linux, Mac).
+
 The tool is in heavy development, and still has a lot of bugs and performance issues when it comes to generating movie clips. Please report if you see any bug, I'll gladly fix it.
 
 ## Movie clips
