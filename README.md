@@ -35,5 +35,13 @@ For example, to extract the content of the folders `sc`, `sc2` and the file `sc/
 By default, movie clips are **NOT** extracted, as movie clips are still buggy and extremely slow. To extract them anyway,
 add the `--extract-movie-clips` flag. e.g. `node extractor.js --folder sc --extract-movie-clips`.
 
+## What about SCP files from Everdale?
+SCP files are archive files. Once you unzip the files in them, you can use this extractor to extract normally.
+
+To unzip the files, use this other tool that I wrote - https://github.com/baraklevy20/SCP-Unpacker
+
+## What about SC3D/CSV/Other file formats
+Maybe in the future.
+
 ## What about changing the textures and saving it back as `.sc` files?
 Compressing back into a valid `.sc` file is **NOT** supported.
