@@ -32,7 +32,8 @@ To run the extractor, run `node extractor.js` followed by a list of files or fol
 
 For example, to extract the content of the folders `sc`, `sc2` and the file `sc/hayday/animals.sc`, use `node extractor.js --folder sc --folder sc2 --file sc/hayday/animals.sc`.
 
-For example, to extract the content of the folders `sc`, `sc2` and the file `sc/hayday/animals.sc`, use `node index.js --folder sc --folder sc2 --file sc/hayday/animals.sc`.
+By default, movie clips are **NOT** extracted, as movie clips are still buggy and extremely slow. To extract them anyway,
+add the `--extract-movie-clips` flag. e.g. `node extractor.js --folder sc --extract-movie-clips`.
 
 ## What about changing the textures and saving it back as `.sc` files?
 Compressing back into a valid `.sc` file is **NOT** supported.

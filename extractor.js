@@ -29,6 +29,7 @@ const main = async () => {
   const promises = [];
   const filesToExtract = !argv.file ? [] : (Array.isArray(argv.file) ? argv.file : [argv.file]);
   const folders = !argv.folder ? [] : (Array.isArray(argv.folder) ? argv.folder : [argv.folder]);
+  const { extractMovieClips } = argv;
 
   folders.forEach((folder) => {
     // fs.rmSync(folder, { recursive: true });
@@ -52,7 +53,7 @@ const main = async () => {
     const scFile = filesToExtract[i];
     fs.mkdirSync(`out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
     fs.mkdirSync(`sc_out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
-    await readScFile(`${scFile.substring(0, scFile.indexOf('.sc'))}`);
+    await readScFile(`${scFile.substring(0, scFile.indexOf('.sc'))}`, extractMovieClips);
   }
 
   // const sharp = require('sharp');

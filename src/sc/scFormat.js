@@ -224,7 +224,7 @@ const readNormalScFile = async (filename, buffer) => {
   };
 };
 
-const readScFile = async (fileName) => {
+const readScFile = async (fileName, extractMovieClips) => {
   console.log(`Extracting ${fileName}`);
   const scFileContent = await readNormalScFile(fileName, await getScBuffer(fileName));
   const startTime = new Date().getTime();
@@ -320,13 +320,18 @@ const readScFile = async (fileName) => {
   // };
 
   logger.debug(`extractShapes time - ${(new Date().getTime() - startTime) / repeat}ms`);
-  await movieClipSection.createMovieClips(
-    fileName,
-    scFileContent.transformMatrices,
-    scFileContent.colorTransforms,
-    scFileContent.resources,
-    scFileContent.exports,
-  );
+
+  if (extractMovieClips) {
+    await movieClipSection.createMovieClips(
+      fileName,
+      scFileContent.transformMatrices,
+      scFileContent.colorTransforms,
+      scFileContent.resources,
+      scFileContent.exports,
+    );
+  }
+
+  return scFileContent;
 };
 
 module.exports = {
