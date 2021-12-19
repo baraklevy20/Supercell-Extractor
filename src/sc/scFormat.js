@@ -5,7 +5,7 @@ const logger = require('../../logger');
 
 const shapeSection = require('./sections/shape');
 const textFieldSection = require('./sections/textField');
-const colorVariationSection = require('./sections/colorVariation');
+const colorTransformSection = require('./sections/colorTransform');
 const transformMatrixSection = require('./sections/transformMatrix');
 const textureSection = require('./sections/texture');
 const movieClipSection = require('./sections/movieClip');
@@ -159,7 +159,7 @@ const readNormalScFile = async (filename, buffer) => {
     }
 
     if (tag === 0x9) {
-      colorTransforms.push(colorVariationSection.readColorTransform(buffer));
+      colorTransforms.push(colorTransformSection.readColorTransform(buffer));
     }
 
     if (tag === 0xd) {
