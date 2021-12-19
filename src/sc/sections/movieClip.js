@@ -30,8 +30,8 @@ const readMovieClip = (buffer, tag, tagLength) => {
     // Third number - index of color transform or default if -1
     frameResources.push({
       resourceIndex: buffer.readInt16LE(),
-      transformMatrixIndex: buffer.readInt16LE(),
-      colorTransformIndex: buffer.readInt16LE(),
+      transformMatrixIndex: buffer.readUInt16LE(),
+      colorTransformIndex: buffer.readUInt16LE(),
     });
     if (exportId === 282 || exportId === 280) {
       // logger.debug(frameResources[i]);
@@ -159,11 +159,11 @@ const readMovieClip = (buffer, tag, tagLength) => {
 };
 
 const getTransformMatrix = (transformMatrices, index) => (
-  index !== -1 ? transformMatrices[index] : null
+  index !== 0xffff ? transformMatrices[index] : null
 );
 
 const getColorTransformation = (colorTransforms, index) => (
-  index !== -1 ? colorTransforms[index] : null
+  index !== 0xffff ? colorTransforms[index] : null
 );
 
 const applyTransforms = async (sharpObject, transformation, colorTransformation) => {
