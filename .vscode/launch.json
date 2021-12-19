@@ -8,21 +8,40 @@
       "type": "node",
       "request": "launch",
       "name": "Launch Program",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "program": "${workspaceFolder}\\index.js",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}\\extractor.js",
       "outputCapture": "std",
       "args": [
+        // "--file", "sc/everdale/sc_intro.sc"
+        // "--file", "sc/clash quest/supercell_id.sc"
+        // "--file", "sc/all_coc/Clash of Clans 10.134.11 (972).apk/background_player_2.sc"
+        // "--file", "sc/clash quest/ui_cards.sc"
+        // "--folder", "sc/all_coc",
+        // "--folder", "sc/clash_all/Clash of Clans 14.93.6 (1375).apk",
+        // "--folder", "sc"
+        // "--folder", "sc/com.supercell.clashroyale_v2.0.0"
+        // "--folder", "sc/emotes",
+        // "--folder", "sc/everdale"
         // "--folder", "sc/Brawl Stars/11.112",
         // "--folder", "sc/Brawl Stars/14.100",
         // "--folder", "sc/Brawl Stars/18.104",
         // "--folder", "sc/Brawl Stars/23.90",
-        "--file", "sc/Brawl Stars/32.153/background_basic.sc",
+        // "--file", "sc/effects_brawler.sc",
+        // "--file", "sc/background_basic.sc",
+        // "--file", "sc/background_ft.sc",
+        // "--file", "sc/loading.sc",
+        // "--file", "sc/clash/background_npc_lowres.sc",
+        // "--file", "sc/clash/background_war.sc",
+        // "--file", "sc/clash/buildings_lowres.sc",
+        // "--file", "sc/characters.sc"
+        // "--file", "sc/brawl-stars-41-131/ui.sc",
+        // "--file", "sc/brawl-stars-41-131/characters.sc",
+        "--folder", "sc/brawl-stars-41-131",
+        "--extract-movie-clips"
         // "--file", "sc/Brawl Stars/32.153/events.sc",
         // "--file", "sc/Brawl Stars/32.153/loading.sc",
         // "--file", "sc/Brawl Stars/32.153/supercell_id.sc",
-        // "--folder", "sc/Clash of Clans/13.0.1", 
+        // "--folder", "sc/Clash of Clans/13.0.1",
         // "--file", "sc/Hay Day/1_36_212/animals.sc"
       ]
     }

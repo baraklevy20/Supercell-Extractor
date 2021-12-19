@@ -211,7 +211,7 @@ const getShapeRegion = (slices) => {
   };
 };
 
-const extractShape = async (filename, resource, textures, texturesSharp) => {
+const extractShape = async (path, resource, textures, texturesSharp) => {
   const extractSlicePromises = [];
   const shapeRegion = getShapeRegion(resource.slices);
   // const index = 7;
@@ -263,7 +263,7 @@ const extractShape = async (filename, resource, textures, texturesSharp) => {
       top: resource.slices[r.sliceIndex].xyRegion.top - shapeRegion.top,
     })));
 
-  await shape.clone().png().toFile(`out/${filename}-shape${resource.exportId}.png`);
+  await shape.clone().png().toFile(path);
 
   return {
     type: 'shape',
@@ -289,7 +289,12 @@ const extractShapes = async (filename, textures, resources) => {
     const resource = resources[exportId];
 
     if (resource.type === 'shape') {
-      extractShapePromises.push(limit(() => extractShape(filename, resource, textures, texturesSharp)));
+      extractShapePromises.push(limit(() => extractShape(
+        `out/${filename}-shape${resource.exportId}.png`,
+        resource,
+        textures,
+        texturesSharp,
+      )));
     }
   });
 
@@ -304,7 +309,31 @@ const extractShapes = async (filename, textures, resources) => {
   return shapes;
 };
 
+const extractShapesByExportName = (outputDir, exportNames, scFileContent) => {
+  const texturesSharp = scFileContent.textures.map((texture) => sharp(Buffer.from(texture.pixels), {
+    raw:
+    {
+      channels: texture.channels,
+      width: texture.width,
+      height: texture.height,
+    },
+  }));
+
+  exportNames.forEach((exportName) => {
+    const exportId = scFileContent.exports[exportName];
+    if (exportId === undefined) {
+      return;
+    }
+
+    const movieClip = scFileContent.resources[exportId];
+    const shape = scFileContent.resources[movieClip.resourcesMapping[0]];
+
+    extractShape(`${outputDir}/${exportName}.png`, shape, scFileContent.textures, texturesSharp);
+  });
+};
+
 module.exports = {
   readShape,
   extractShapes,
+  extractShapesByExportName,
 };

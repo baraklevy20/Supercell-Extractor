@@ -28,7 +28,9 @@ For example, the brawl stars background is a blue screen with a lot of moving sk
 * Done, now you can use the extractor.
 
 ## Usage
-To run the extractor, run `node index.js` followed by a list of files or folders you wish to extract, using the `--folder` and `--file` arguments.
+To run the extractor, run `node extractor.js` followed by a list of files or folders you wish to extract, using the `--folder` and `--file` arguments.
+
+For example, to extract the content of the folders `sc`, `sc2` and the file `sc/hayday/animals.sc`, use `node extractor.js --folder sc --folder sc2 --file sc/hayday/animals.sc`.
 
 For example, to extract the content of the folders `sc`, `sc2` and the file `sc/hayday/animals.sc`, use `node index.js --folder sc --folder sc2 --file sc/hayday/animals.sc`.
 

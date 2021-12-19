@@ -1,3 +1,4 @@
+require('./scBuffer');
 const fs = require('fs');
 const { SmartBuffer } = require('smart-buffer');
 const logger = require('../../logger');
