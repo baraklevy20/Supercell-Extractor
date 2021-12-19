@@ -76,10 +76,7 @@ const readNormalScFile = async (filename, buffer) => {
 
   for (let i = 0; i < numberOfExports; i += 1) {
     const exportName = buffer.scReadString();
-    if (!exports[exportsIds[i]]) {
-      exports[exportsIds[i]] = [];
-    }
-    exports[exportsIds[i]].push(exportName);
+    exports[exportName] = exportsIds[i];
   }
 
   let tag;
