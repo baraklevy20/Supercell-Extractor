@@ -50,7 +50,6 @@ const main = async () => {
 
   for (let i = 0; i < filesToExtract.length; i += 1) {
     const scFile = filesToExtract[i];
-    fs.mkdirSync(`out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
     await readScFile(`${scFile.substring(0, scFile.indexOf('.sc'))}`, extractMovieClips);
   }
 

@@ -224,6 +224,8 @@ const readNormalScFile = async (filename, buffer) => {
 };
 
 const readScFile = async (fileName, extractMovieClips) => {
+  fs.mkdirSync(`out/${fileName.substring(0, fileName.lastIndexOf('/'))}`, { recursive: true });
+
   console.log(`Extracting ${fileName}`);
   const scFileContent = await readNormalScFile(fileName, await getScBuffer(fileName));
   const startTime = new Date().getTime();
