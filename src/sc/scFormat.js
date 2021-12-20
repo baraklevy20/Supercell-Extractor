@@ -18,7 +18,6 @@ const addResource = (resources, resource) => {
 const getScBuffer = async (scFileName) => {
   const buffer = SmartBuffer.fromBuffer(fs.readFileSync(`${scFileName}.sc`));
   const decompressedScFile = await buffer.scDecompress();
-  fs.writeFileSync(`sc_out/${scFileName}.sc`, decompressedScFile.internalBuffer);
 
   if (!buffer.scCheckValidity(decompressedScFile)) {
     logger.error(`${scFileName} is corrupted. Skipping.`);

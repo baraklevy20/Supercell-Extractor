@@ -1,11 +1,8 @@
 node_modules/
 /sc/
-/sccoc/
-/sc_out/
 /csv_client/
 /csv_logic/
 /out/
-/Hay Day/
 /sc3d/
 *.png
 *.webp

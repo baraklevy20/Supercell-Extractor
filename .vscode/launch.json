@@ -33,11 +33,11 @@
         // "--file", "sc/clash/background_npc_lowres.sc",
         // "--file", "sc/clash/background_war.sc",
         // "--file", "sc/clash/buildings_lowres.sc",
-        // "--file", "sc/characters.sc"
+        // "--file", "sc/characters.sc",
         // "--file", "sc/brawl-stars-41-131/ui.sc",
-        // "--file", "sc/brawl-stars-41-131/characters.sc",
-        "--folder", "sc/brawl-stars-41-131",
-        "--extract-movie-clips"
+        "--file", "sc/brawl-stars-41-131/characters.sc",
+        // "--folder", "sc/brawl-stars-41-131",
+        // "--extract-movie-clips"
         // "--file", "sc/Brawl Stars/32.153/events.sc",
         // "--file", "sc/Brawl Stars/32.153/loading.sc",
         // "--file", "sc/Brawl Stars/32.153/supercell_id.sc",

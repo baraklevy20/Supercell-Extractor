@@ -45,14 +45,12 @@ const main = async () => {
 
   // filesToExtract.forEach((scFile) => {
   //   fs.mkdirSync(`out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
-  //   fs.mkdirSync(`sc_out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
   //   promises.push(limit(() => readScFile(`${scFile.substring(0, scFile.indexOf('.sc'))}`)));
   // });
 
   for (let i = 0; i < filesToExtract.length; i += 1) {
     const scFile = filesToExtract[i];
     fs.mkdirSync(`out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
-    fs.mkdirSync(`sc_out/${scFile.substring(0, scFile.lastIndexOf('/'))}`, { recursive: true });
     await readScFile(`${scFile.substring(0, scFile.indexOf('.sc'))}`, extractMovieClips);
   }
 
