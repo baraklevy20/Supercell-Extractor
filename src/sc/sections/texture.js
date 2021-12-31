@@ -116,6 +116,19 @@ const readTexture = (
     tag = textureBuffer.readUInt8();
     textureBuffer.readUInt32LE(); // tag length
   }
+
+  /*
+  Flag1 = maybe CAN_LOW_RES
+  1 = GL_LINEAR & Linear read & Flag1
+  10 = GL_LINEAR_MIPMAP_NEAREST & Linear read & Flag1
+  13 = GL_LINEAR_MIPMAP_NEAREST & Linear read
+  18 = GL_LINEAR & Linear read
+  1B = GL_LINEAR & Blocks read
+  1C = GL_LINEAR & Blocks read & Flag1
+  1D = GL_LINEAR_MIPMAP_NEAREST & Blocks read & Flag1
+  22 = GL_NEAREST & Linear read
+  */
+
   const pixelFormatIndex = textureBuffer.readUInt8();
   const pixelFormat = formats[pixelFormatIndex] || 'GL_RGBA';
   const channels = channelsPerFormat[pixelFormat];
@@ -128,7 +141,7 @@ const readTexture = (
     buffer.readBuffer(5);
   }
 
-  if (tag === 0x1b || tag === 0x1c) {
+  if ([0x1b, 0x1c, 0x1d].includes(tag)) {
     const blockSize = 32;
     const numberOfBlocksInRow = Math.ceil(width / blockSize);
     const numberOfBlocksInColumn = Math.ceil(height / blockSize);
@@ -151,7 +164,7 @@ const readTexture = (
         }
       }
     }
-  } else if (tag === 0x01) {
+  } else {
     for (let i = 0; i < width * height; i += 1) {
       const pixel = readPixel(textureBuffer, pixelFormatIndex);
       for (let k = 0; k < channels; k += 1) {
