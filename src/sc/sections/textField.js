@@ -39,11 +39,12 @@ const readTextField = (buffer, tag) => {
   }
 
   if (tag > 0x21) {
+    // probably changing text color such as in first 3 brawlers in leaderboard
     textField.c15 = buffer.readInt16LE();
   }
 
   if (tag > 0x2b) {
-    textField.unknownFlag6 = !!buffer.readUInt8();
+    textField.unknownFlag7 = !!buffer.readUInt8();
   }
 
   return textField;

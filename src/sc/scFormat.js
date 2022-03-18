@@ -163,6 +163,7 @@ const readNormalScFile = async (filename, buffer) => {
 
     if (tag === 0xd) {
       // timeline indices
+      // no longer in use in newer versions
     }
 
     if (tag === 0x17) {
@@ -239,6 +240,54 @@ const readScFile = async (fileName, extractMovieClips) => {
     scFileContent.resources[shape.exportId] = shape;
   });
 
+  const output = {};
+  Object.entries(scFileContent.resources).forEach(([exportId, resource]) => {
+    if (resource.type === 'movieClip') {
+      output[exportId] = {
+        // exportName: scFileContent.exports[exportId],
+        mappings: resource.resourcesMapping,
+      };
+    } else {
+      output[exportId] = resource.type;
+    }
+  });
+  fs.writeFileSync('mappings.json', JSON.stringify(output));
+  fs.writeFileSync('exports.json', JSON.stringify(scFileContent.exports));
+
+  const exportedResources = Object.values(scFileContent.resources).map((r) => {
+    const obj = {};
+    obj.export_id = r.exportId;
+    if (r.type === 'shape') {
+      obj.type = 'shape';
+    } else if (r.type === 'movieClip') {
+      obj.type = 'movie_clip';
+      obj.frame_rate = r.frameRate;
+      obj.mapping = r.resourcesMapping;
+      obj.frames = r.frames.map((f) => f.frameResources.map((m) => {
+        const resource = {};
+        resource.index = m.resourceIndex;
+        resource.t = m.transformMatrixIndex === 0xffff
+          ? null
+          : scFileContent.transformMatrices[m.transformMatrixIndex];
+        if (resource.t !== null) {
+          resource.t = [
+            resource.t.matrix[0], resource.t.matrix[1],
+            resource.t.matrix[2], resource.t.matrix[3],
+            resource.t.odx, resource.t.ody,
+          ];
+        }
+        resource.tc = m.colorTransformIndex === 0xffff
+          ? null
+          : scFileContent.colorTransforms[m.colorTransformIndex];
+
+        return resource;
+      }));
+    }
+
+    return obj;
+  });
+
+  fs.writeFileSync('movie_clip_data.json', JSON.stringify(exportedResources));
   // scFileContent.transformMatrices.left = {
   //   matrix: [1, -1, 1, 0],
   //   odx: -100,
