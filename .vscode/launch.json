@@ -9,7 +9,7 @@
       "request": "launch",
       "name": "Launch Program",
       "skipFiles": ["<node_internals>/**"],
-      "program": "${workspaceFolder}\\extractor.js",
+      "program": "${workspaceFolder}/extractor.js",
       "outputCapture": "std",
       "args": [
         // "--file", "sc/everdale/sc_intro.sc"
