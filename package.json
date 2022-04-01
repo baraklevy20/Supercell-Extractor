@@ -12,7 +12,7 @@
   "dependencies": {
     "fzstd": "0.0.3",
     "js-md5": "^0.7.3",
-    "lzma-native": "^8.0.1",
+    "lzma-native": "^8.0.6",
     "mathjs": "^10.0.0",
     "p-limit": "^3.1.0",
     "sharp": "^0.29.3",
